@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './index.css';
 import { packages, categoryNames, addons } from './packages.js';
+import PerryAssistant from './components/PerryAssistant';
 
 function App() {
   const [currentStep, setCurrentStep] = useState('welcome');
@@ -295,6 +296,21 @@ Peridot Images Team`
     }
   }, []);
 
+  // Track abandonment points and user progress
+  React.useEffect(() => {
+    // Track abandonment points
+    if (currentStep !== 'welcome') {
+      const abandonmentData = {
+        step: currentStep,
+        timestamp: new Date(),
+        package: selectedPackage?.name,
+        email: clientInfo.email
+      };
+      // Store in localStorage (your app already uses this pattern)
+      localStorage.setItem('peridotAbandonment', JSON.stringify(abandonmentData));
+    }
+  }, [currentStep, selectedPackage, clientInfo.email]);
+
   // HST Calculation (13% for Ontario, Canada)
   const calculateHST = (amount) => {
     const subtotal = parseFloat(amount) || 0;
@@ -542,16 +558,38 @@ Peridot Images Team`
     const invoice = generateInvoice(booking);
     const hstBreakdown = calculateHSTBreakdown(booking.totalPrice);
     
+    // Get package details
+    const selectedPackage = packages.find(pkg => pkg.name === booking.package);
+    const packageDetails = selectedPackage ? selectedPackage.details : [];
+    
+    // Format addons
+    const addonsList = booking.addons && booking.addons.length > 0 
+      ? booking.addons.map(addon => `• ${addon.name} (+$${addon.price})`).join('\n')
+      : 'None selected';
+    
+    // Calculate days until session
+    const sessionDate = new Date(booking.date);
+    const today = new Date();
+    // eslint-disable-next-line no-unused-vars
+    const daysUntilSession = Math.ceil((sessionDate - today) / (1000 * 60 * 60 * 24));
+    
     const subject = `Invoice ${invoice.invoiceNumber} - Your Peridot Images Session`;
     const body = `Dear ${booking.clientName},
 
-Thank you for booking with Peridot Images! Please find your session invoice below.
+Thank you for booking with Peridot Images! Please find your detailed session information and invoice below.
 
-📋 INVOICE DETAILS:
+📋 BOOKING CONFIRMATION:
 Invoice Number: ${invoice.invoiceNumber}
 Session Date: ${new Date(booking.date).toLocaleDateString('en-CA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
 Session Time: ${booking.time}
+Duration: ${booking.duration || 'Standard session duration'}
+
+📸 YOUR PACKAGE DETAILS:
 Package: ${booking.package}
+${packageDetails.map(detail => `• ${detail}`).join('\n')}
+
+🎁 SELECTED ADD-ONS:
+${addonsList}
 
 💰 PAYMENT BREAKDOWN:
 Service Amount: $${hstBreakdown.serviceAmount}
@@ -565,10 +603,14 @@ Reference: ${booking.clientName} - Invoice ${invoice.invoiceNumber}
 📍 SESSION LOCATION:
 Barrhaven Studio, Ottawa
 
-🔔 NEXT STEPS:
+📞 IMPORTANT: SHOOTING PLAN CONTACT
+I will contact you approximately 1 week before your session to discuss your shooting plan, preferences, and any specific ideas you have for your photos. This ensures we create exactly what you envision!
+
+🔔 WHAT TO EXPECT:
 1. Complete payment via e-transfer using the details above
-2. We'll send your session preparation guide 48 hours before your appointment
-3. Your beautifully edited photos will be delivered within 7-10 business days
+2. I'll reach out 1 week before your session to plan your shoot
+3. You'll receive a session preparation guide 48 hours before your appointment
+4. Your beautifully edited photos will be delivered within 7-10 business days after your session
 
 💾 DOWNLOAD YOUR INVOICE:
 For a printable PDF version of this invoice (for your tax records), please visit your booking confirmation or contact us.
@@ -1421,6 +1463,33 @@ The Peridot Images Team
     window.open(mailtoLink);
   };
 
+  // Email recovery system for abandoned bookings
+  // eslint-disable-next-line no-unused-vars
+  const sendAbandonmentEmail = (userData) => {
+    const template = `Hi ${userData.name || 'there'}, 
+
+I noticed you were in the middle of booking a ${userData.package} photography session with Peridot Images, but didn't complete your reservation.
+
+Don't worry - your progress has been saved! You can complete your booking in just 2 clicks:
+
+🔗 [Resume Your Booking](https://your-domain.com/resume)
+
+Your selected package: ${userData.package}
+Step you reached: ${userData.step}
+
+If you have any questions or need assistance, just reply to this email or call us at (647) 444-3767.
+
+Looking forward to capturing your beautiful moments!
+
+Best regards,
+The Peridot Images Team
+📧 imagesbyperidot@gmail.com
+📱 (647) 444-3767`;
+
+    const mailtoLink = `mailto:${userData.email}?subject=${encodeURIComponent('Complete Your Peridot Images Booking')}&body=${encodeURIComponent(template)}`;
+    window.open(mailtoLink);
+  };
+
   // CLIENT MANAGEMENT FUNCTIONS
   // const addClientNote = (clientEmail, note) => {
   //   const timestamp = new Date().toISOString();
@@ -1803,25 +1872,62 @@ Top Package: ${weekBookings.length > 0 ? weekBookings.reduce((acc, b) => {
 
   // Place this helper function inside the App component, before the return statement
   function handleEmailWithPDFAttachment(booking) {
+    // Get package details
+    const selectedPackage = packages.find(pkg => pkg.name === booking.package);
+    const packageDetails = selectedPackage ? selectedPackage.details : [];
+    
+    // Format addons
+    const addonsList = booking.addons && booking.addons.length > 0 
+      ? booking.addons.map(addon => `• ${addon.name} (+$${addon.price})`).join('\n')
+      : 'None selected';
+    
     const subject = `Invoice ${Date.now()} - Your Peridot Images Session`;
     const body = [
       `Dear ${booking.clientName},`,
       '',
-      'Please find attached your invoice for the upcoming photography session.',
+      'Thank you for booking with Peridot Images! Please find attached your detailed session information and invoice.',
       '',
-      'Session Details:',
-      `- Date: ${new Date(booking.date).toLocaleDateString('en-CA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`,
-      `- Time: ${booking.time}`,
-      `- Package: ${booking.package}`,
-      `- Total: $${booking.totalPrice} (HST included)`,
+      '📋 BOOKING CONFIRMATION:',
+      `Invoice Number: INV-${Date.now()}`,
+      `Session Date: ${new Date(booking.date).toLocaleDateString('en-CA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`,
+      `Session Time: ${booking.time}`,
+      `Duration: ${booking.duration || 'Standard session duration'}`,
       '',
-      'Payment: E-transfer to alongejoan@gmail.com',
+      '📸 YOUR PACKAGE DETAILS:',
+      `Package: ${booking.package}`,
+      ...packageDetails.map(detail => `• ${detail}`),
+      '',
+      '🎁 SELECTED ADD-ONS:',
+      addonsList,
+      '',
+      '💰 PAYMENT BREAKDOWN:',
+      `Total Amount: $${booking.totalPrice} (HST included)`,
+      '',
+      '💳 PAYMENT INSTRUCTIONS:',
+      'Please send e-transfer to: alongejoan@gmail.com',
       `Reference: ${booking.clientName} - Session ${booking.date}`,
+      '',
+      '📍 SESSION LOCATION:',
+      'Barrhaven Studio, Ottawa',
+      '',
+      '📞 IMPORTANT: SHOOTING PLAN CONTACT',
+      'I will contact you approximately 1 week before your session to discuss your shooting plan, preferences, and any specific ideas you have for your photos. This ensures we create exactly what you envision!',
+      '',
+      '🔔 WHAT TO EXPECT:',
+      '1. Complete payment via e-transfer using the details above',
+      '2. I\'ll reach out 1 week before your session to plan your shoot',
+      '3. You\'ll receive a session preparation guide 48 hours before your appointment',
+      '4. Your beautifully edited photos will be delivered within 7-10 business days after your session',
       '',
       'Thank you for choosing Peridot Images!',
       '',
       'Best regards,',
-      'Peridot Images Team'
+      'The Peridot Images Team',
+      '',
+      '📧 imagesbyperidot@gmail.com',
+      '📱 (647) 444-3767',
+      '📸 @peridotimages',
+      '🌐 Barrhaven Studio, Ottawa'
     ].join('\n');
 
     const mailtoLink = `mailto:${booking.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
@@ -1905,60 +2011,145 @@ Top Package: ${weekBookings.length > 0 ? weekBookings.reduce((acc, b) => {
   );
 
   // SOCIAL PROOF COMPONENT
-  const testimonials = [
-    {
-      name: "Sarah M.",
-      rating: 5,
-      text: "Absolutely stunning photos! The team was professional and made us feel so comfortable.",
-      package: "Family Standard"
-    },
-    {
-      name: "Jennifer L.", 
-      rating: 5,
-      text: "Best investment for our maternity photos. The quality is incredible!",
-      package: "Maternity Premium"
-    },
-    {
-      name: "Mark T.",
-      rating: 5,
-      text: "Professional headshots that landed me my dream job. Highly recommend!",
-      package: "Professional Premium"
+  const SocialProof = () => {
+    const [currentReviewIndex, setCurrentReviewIndex] = useState(0);
+    const [isAutoPlaying, setIsAutoPlaying] = useState(true);
+    
+    // Get all reviews and shuffle them for variety
+    const allReviews = reviews.length > 0 ? reviews : [];
+    const shuffledReviews = [...allReviews].sort(() => Math.random() - 0.5);
+    const displayReviews = shuffledReviews.slice(0, 6); // Show up to 6 reviews
+    
+    const reviewStats = getReviewStats();
+    
+    // Auto-play carousel
+    useEffect(() => {
+      if (!isAutoPlaying || displayReviews.length <= 1) return;
+      
+      const interval = setInterval(() => {
+        setCurrentReviewIndex((prev) => (prev + 1) % displayReviews.length);
+      }, 4000); // Change every 4 seconds
+      
+      return () => clearInterval(interval);
+    }, [isAutoPlaying, displayReviews.length]);
+    
+    // Pause auto-play on hover
+    const handleMouseEnter = () => setIsAutoPlaying(false);
+    const handleMouseLeave = () => setIsAutoPlaying(true);
+    
+    const nextReview = () => {
+      setCurrentReviewIndex((prev) => (prev + 1) % displayReviews.length);
+    };
+    
+    const prevReview = () => {
+      setCurrentReviewIndex((prev) => (prev - 1 + displayReviews.length) % displayReviews.length);
+    };
+    
+    const goToReview = (index) => {
+      setCurrentReviewIndex(index);
+    };
+    
+    if (displayReviews.length === 0) {
+      return null; // Don't show section if no reviews
     }
-  ];
-
-  const SocialProof = () => (
-    <div className="social-proof-section">
-      <h3>⭐ What Our Clients Say</h3>
-      <div className="testimonials-carousel">
-        {testimonials.map((testimonial, index) => (
-          <div key={index} className="testimonial-card">
-            <div className="stars">
-              {'⭐'.repeat(testimonial.rating)}
-            </div>
-            <p>"{testimonial.text}"</p>
-            <div className="testimonial-author">
-              <strong>{testimonial.name}</strong>
-              <span>{testimonial.package}</span>
-            </div>
+    
+    return (
+      <div className="social-proof-section">
+        <h3>⭐ What Our Clients Say</h3>
+        
+        {/* Dynamic Carousel */}
+        <div 
+          className="testimonials-carousel-container"
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+        >
+          <div className="carousel-controls">
+            <button 
+              onClick={prevReview}
+              className="carousel-btn prev"
+              aria-label="Previous review"
+            >
+              ‹
+            </button>
+            <button 
+              onClick={nextReview}
+              className="carousel-btn next"
+              aria-label="Next review"
+            >
+              ›
+            </button>
           </div>
-        ))}
+          
+          <div className="testimonials-carousel">
+            {displayReviews.map((review, index) => (
+              <div 
+                key={review.id} 
+                className={`testimonial-card ${index === currentReviewIndex ? 'active' : ''}`}
+                style={{
+                  transform: `translateX(${(index - currentReviewIndex) * 100}%)`,
+                  opacity: index === currentReviewIndex ? 1 : 0.3
+                }}
+              >
+                <div className="stars">
+                  {'⭐'.repeat(review.rating)}
+                </div>
+                <p className="review-text">"{review.text}"</p>
+                <div className="testimonial-author">
+                  <strong>{review.name}</strong>
+                  <span className="package-name">{review.package}</span>
+                  {review.verified && <span className="verified-badge">✓ Verified</span>}
+                  {review.featured && <span className="featured-badge">⭐ Featured</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+          
+          {/* Carousel Indicators */}
+          {displayReviews.length > 1 && (
+            <div className="carousel-indicators">
+              {displayReviews.map((_, index) => (
+                <button
+                  key={index}
+                  onClick={() => goToReview(index)}
+                  className={`indicator ${index === currentReviewIndex ? 'active' : ''}`}
+                  aria-label={`Go to review ${index + 1}`}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+        
+        {/* Review Statistics */}
+        <div className="social-stats">
+          <div className="stat">
+            <strong>{reviewStats.totalReviews}+</strong>
+            <span>Happy Clients</span>
+          </div>
+          <div className="stat">
+            <strong>{reviewStats.averageRating}/5</strong>
+            <span>Average Rating</span>
+          </div>
+          <div className="stat">
+            <strong>100%</strong>
+            <span>Satisfaction Rate</span>
+          </div>
+        </div>
+        
+        {/* Auto-play Toggle */}
+        {displayReviews.length > 1 && (
+          <div className="carousel-controls-bottom">
+            <button
+              onClick={() => setIsAutoPlaying(!isAutoPlaying)}
+              className={`auto-play-toggle ${isAutoPlaying ? 'active' : ''}`}
+              aria-label={isAutoPlaying ? 'Pause auto-play' : 'Start auto-play'}
+            >
+              {isAutoPlaying ? '⏸️ Pause' : '▶️ Play'}
+            </button>
+          </div>
+        )}
       </div>
-      <div className="social-stats">
-        <div className="stat">
-          <strong>500+</strong>
-          <span>Happy Clients</span>
-        </div>
-        <div className="stat">
-          <strong>4.9/5</strong>
-          <span>Average Rating</span>
-        </div>
-        <div className="stat">
-          <strong>100%</strong>
-          <span>Satisfaction Rate</span>
-        </div>
-      </div>
-    </div>
-  );
+    );
+  };
 
   const VoiceControls = () => (
     <div className="voice-controls">
@@ -2193,22 +2384,56 @@ Top Package: ${weekBookings.length > 0 ? weekBookings.reduce((acc, b) => {
 
   // Export analytics data
   const exportAnalyticsData = () => {
-    const insights = getMarketingInsights();
-    const exportData = {
-      ...visitorAnalytics,
-      insights,
-      exportDate: new Date().toISOString(),
-      currentLocation: userLocation
-    };
+    const csvData = [
+      ['Peridot Images - Visitor Analytics Report'],
+      [`Generated: ${new Date().toLocaleDateString()}`],
+      [''],
+      ['SUMMARY:'],
+      [`Total Visitors: ${visitorAnalytics.totalVisitors}`],
+      [`Unique Visitors: ${visitorAnalytics.uniqueVisitors}`],
+      [`Page Views: ${visitorAnalytics.pageViews}`],
+      [''],
+      ['LOCATIONS:'],
+      ['Location', 'Visitors'],
+      ...Object.entries(visitorAnalytics.locations).map(([location, count]) => [location, count])
+    ];
     
-    const dataStr = JSON.stringify(exportData, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(dataBlob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `peridot-analytics-${new Date().toISOString().split('T')[0]}.json`;
-    link.click();
-    URL.revokeObjectURL(url);
+    const csvContent = csvData.map(row => 
+      Array.isArray(row) ? row.join(',') : row
+    ).join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `analytics-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
+  // Smart timing triggers for abandonment detection
+  // eslint-disable-next-line no-unused-vars
+  const trackAbandonmentRisk = () => {
+    // Detect when user is about to leave
+    // Trigger smart popups or save progress
+    // Your app already has auto-save, so this just enhances it
+    
+    const abandonmentData = localStorage.getItem('peridotAbandonment');
+    if (abandonmentData) {
+      const data = JSON.parse(abandonmentData);
+      const timeSinceLastActivity = new Date() - new Date(data.timestamp);
+      
+      // If user was active in last 5 minutes and has progress, show recovery popup
+      if (timeSinceLastActivity < 5 * 60 * 1000 && data.step !== 'welcome') {
+        return {
+          shouldShowRecovery: true,
+          userData: data,
+          timeSinceActivity: timeSinceLastActivity
+        };
+      }
+    }
+    
+    return { shouldShowRecovery: false };
   };
 
   // Real-time visitor display for admin
@@ -2227,6 +2452,152 @@ Top Package: ${weekBookings.length > 0 ? weekBookings.reduce((acc, b) => {
       </div>
     )
   );
+
+  // Review Management State
+  const [reviews, setReviews] = useState(() => {
+    const savedReviews = localStorage.getItem('peridotReviews');
+    return savedReviews ? JSON.parse(savedReviews) : [
+      {
+        id: 1,
+        name: "Sarah M.",
+        rating: 5,
+        text: "Absolutely stunning photos! The team was professional and made us feel so comfortable.",
+        package: "Family Standard",
+        date: "2024-01-15",
+        verified: true,
+        featured: true
+      },
+      {
+        id: 2,
+        name: "Jennifer L.", 
+        rating: 5,
+        text: "Best investment for our maternity photos. The quality is incredible!",
+        package: "Maternity Premium",
+        date: "2024-01-10",
+        verified: true,
+        featured: true
+      },
+      {
+        id: 3,
+        name: "Mark T.",
+        rating: 5,
+        text: "Professional headshots that landed me my dream job. Highly recommend!",
+        package: "Professional Premium",
+        date: "2024-01-05",
+        verified: true,
+        featured: false
+      }
+    ];
+  });
+
+  const [editingReview, setEditingReview] = useState(null);
+  const [newReview, setNewReview] = useState({
+    name: '',
+    rating: 5,
+    text: '',
+    package: '',
+    verified: false,
+    featured: false
+  });
+  const [showReviewForm, setShowReviewForm] = useState(false);
+
+  // Review Management Functions
+  const addReview = () => {
+    if (!newReview.name || !newReview.text || !newReview.package) {
+      alert('Please fill in all required fields');
+      return;
+    }
+
+    const review = {
+      id: Date.now(),
+      ...newReview,
+      date: new Date().toISOString().split('T')[0]
+    };
+
+    setReviews(prev => {
+      const updatedReviews = [...prev, review];
+      localStorage.setItem('peridotReviews', JSON.stringify(updatedReviews));
+      return updatedReviews;
+    });
+
+    setNewReview({
+      name: '',
+      rating: 5,
+      text: '',
+      package: '',
+      verified: false,
+      featured: false
+    });
+  };
+
+  const updateReview = (id) => {
+    if (!editingReview.name || !editingReview.text || !editingReview.package) {
+      alert('Please fill in all required fields');
+      return;
+    }
+
+    setReviews(prev => {
+      const updatedReviews = prev.map(review => 
+        review.id === id ? { ...editingReview, id } : review
+      );
+      localStorage.setItem('peridotReviews', JSON.stringify(updatedReviews));
+      return updatedReviews;
+    });
+
+    setEditingReview(null);
+  };
+
+  const deleteReview = (id) => {
+    if (window.confirm('Are you sure you want to delete this review?')) {
+      setReviews(prev => {
+        const updatedReviews = prev.filter(review => review.id !== id);
+        localStorage.setItem('peridotReviews', JSON.stringify(updatedReviews));
+        return updatedReviews;
+      });
+    }
+  };
+
+  const toggleReviewFeatured = (id) => {
+    setReviews(prev => {
+      const updatedReviews = prev.map(review => 
+        review.id === id ? { ...review, featured: !review.featured } : review
+      );
+      localStorage.setItem('peridotReviews', JSON.stringify(updatedReviews));
+      return updatedReviews;
+    });
+  };
+
+  const toggleReviewVerified = (id) => {
+    setReviews(prev => prev.map(review => 
+      review.id === id 
+        ? { ...review, verified: !review.verified }
+        : review
+    ));
+  };
+
+  const startEditingReview = (review) => {
+    setEditingReview({ ...review });
+  };
+
+  const cancelEditingReview = () => {
+    setEditingReview(null);
+  };
+
+  // Get featured reviews for display
+  const getFeaturedReviews = () => {
+    return reviews.filter(review => review.featured).slice(0, 3);
+  };
+
+  // Calculate review statistics
+  const getReviewStats = () => {
+    if (reviews.length === 0) return { totalReviews: 0, averageRating: 0 };
+    
+    const totalReviews = reviews.length;
+    const totalRating = reviews.reduce((sum, review) => sum + review.rating, 0);
+    const averageRating = (totalRating / totalReviews).toFixed(1);
+    
+    return { totalReviews, averageRating };
+  };
 
   return (
     <div className="luxury-container">
@@ -2247,6 +2618,14 @@ Top Package: ${weekBookings.length > 0 ? weekBookings.reduce((acc, b) => {
           >
             {language === 'en' ? '🇫🇷 Français' : '🇬🇧 English'}
           </button>
+        </div>
+
+        {/* AI Booking Assistant */}
+        <div className="ai-assistant-bubble">
+          <div className="ai-assistant-icon">💬</div>
+          <div className="ai-assistant-tooltip">
+            Need help choosing a package?
+          </div>
         </div>
 
         {/* Voice Controls */}
@@ -3402,6 +3781,12 @@ Top Package: ${weekBookings.length > 0 ? weekBookings.reduce((acc, b) => {
                   className={`admin-nav-item ${adminCurrentTab === 'analytics-advanced' ? 'active' : ''}`}
                 >
                   🌍 Visitor Analytics
+                </button>
+                <button
+                  onClick={() => setAdminCurrentTab('reviews')}
+                  className={`admin-nav-item ${adminCurrentTab === 'reviews' ? 'active' : ''}`}
+                >
+                  ⭐ Reviews
                 </button>
               </nav>
             </header>
@@ -5281,8 +5666,316 @@ Top Package: ${weekBookings.length > 0 ? weekBookings.reduce((acc, b) => {
                 </div>
               </div>
             )}
+            {/* Reviews Tab */}
+            {adminCurrentTab === 'reviews' && (
+              <div className="admin-content">
+                <div className="reviews-management-section">
+                  <h2 className="admin-section-title">Review Management</h2>
+                  <p className="section-description">Manage and approve client reviews</p>
+                  {/* Review Statistics */}
+                  <div className="review-stats-grid">
+                    {(() => {
+                      const stats = getReviewStats();
+                      return (
+                        <>
+                          <div className="review-stat-card">
+                            <div className="stat-icon">⭐</div>
+                            <div className="stat-content">
+                              <div className="stat-value">{stats.totalReviews}</div>
+                              <div className="stat-label">Total Reviews</div>
+                            </div>
+                          </div>
+                          <div className="review-stat-card average">
+                            <div className="stat-icon">✅</div>
+                            <div className="stat-content">
+                              <div className="stat-value">{stats.averageRating}/5</div>
+                              <div className="stat-label">Average Rating</div>
+                            </div>
+                          </div>
+                          <div className="review-stat-card verified">
+                            <div className="stat-icon">✅</div>
+                            <div className="stat-content">
+                              <div className="stat-value">{stats.verifiedReviews}</div>
+                              <div className="stat-label">Verified Reviews</div>
+                            </div>
+                          </div>
+                          <div className="review-stat-card featured">
+                            <div className="stat-icon">✅</div>
+                            <div className="stat-content">
+                              <div className="stat-value">{stats.featuredReviews}</div>
+                              <div className="stat-label">Featured Reviews</div>
+                            </div>
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
+                  {/* Action Buttons */}
+                  <div className="review-actions">
+                    <button
+                      onClick={() => {
+                        setEditingReview(null);
+                        setNewReview({
+                          name: '',
+                          rating: 5,
+                          text: '',
+                          package: '',
+                          verified: false,
+                          featured: false
+                        });
+                        setShowReviewForm(true);
+                      }}
+                      className="action-button primary"
+                    >
+                      ➕ Add New Review
+                    </button>
+                  </div>
+                  {/* Review Form Modal */}
+                  {showReviewForm && (
+                    <div className="review-form-overlay">
+                      <div className="review-form-modal">
+                        <div className="review-form-header">
+                          <h3 className="review-form-title">
+                            {editingReview ? 'Edit Review' : 'Add New Review'}
+                          </h3>
+                          <button
+                            onClick={() => {
+                              setShowReviewForm(false);
+                              setEditingReview(null);
+                              setNewReview({
+                                name: '',
+                                rating: 5,
+                                text: '',
+                                package: '',
+                                verified: false,
+                                featured: false
+                              });
+                            }}
+                            className="review-form-close"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                        <div className="review-form-content">
+                          <div className="review-form-grid">
+                            <div className="review-form-group">
+                              <label className="review-form-label">Name *</label>
+                              <input
+                                type="text"
+                                value={editingReview ? editingReview.name : newReview.name}
+                                onChange={(e) => {
+                                  if (editingReview) {
+                                    setEditingReview({ ...editingReview, name: e.target.value });
+                                  } else {
+                                    setNewReview({ ...newReview, name: e.target.value });
+                                  }
+                                }}
+                                className="review-form-input"
+                                placeholder="Enter client name"
+                              />
+                            </div>
+                            <div className="review-form-group">
+                              <label className="review-form-label">Rating *</label>
+                              <select
+                                value={editingReview ? editingReview.rating : newReview.rating}
+                                onChange={(e) => {
+                                  if (editingReview) {
+                                    setEditingReview({ ...editingReview, rating: Number(e.target.value) });
+                                  } else {
+                                    setNewReview({ ...newReview, rating: Number(e.target.value) });
+                                  }
+                                }}
+                                className="review-form-input"
+                              >
+                                <option value={5}>⭐⭐⭐⭐⭐ (5 stars)</option>
+                                <option value={4}>⭐⭐⭐⭐ (4 stars)</option>
+                                <option value={3}>⭐⭐⭐ (3 stars)</option>
+                                <option value={2}>⭐⭐ (2 stars)</option>
+                                <option value={1}>⭐ (1 star)</option>
+                              </select>
+                            </div>
+                            <div className="review-form-group full-width">
+                              <label className="review-form-label">Review Text *</label>
+                              <textarea
+                                value={editingReview ? editingReview.text : newReview.text}
+                                onChange={(e) => {
+                                  if (editingReview) {
+                                    setEditingReview({ ...editingReview, text: e.target.value });
+                                  } else {
+                                    setNewReview({ ...newReview, text: e.target.value });
+                                  }
+                                }}
+                                className="review-form-textarea"
+                                placeholder="Enter the review text"
+                                rows="4"
+                              ></textarea>
+                            </div>
+                            <div className="review-form-group">
+                              <label className="review-form-label">Package</label>
+                              <input
+                                type="text"
+                                value={editingReview ? editingReview.package : newReview.package}
+                                onChange={(e) => {
+                                  if (editingReview) {
+                                    setEditingReview({ ...editingReview, package: e.target.value });
+                                  } else {
+                                    setNewReview({ ...newReview, package: e.target.value });
+                                  }
+                                }}
+                                className="review-form-input"
+                                placeholder="e.g., Family Standard"
+                              />
+                            </div>
+                            <div className="review-form-group">
+                              <label className="review-form-label">
+                                <input
+                                  type="checkbox"
+                                  checked={editingReview ? editingReview.verified : newReview.verified}
+                                  onChange={(e) => {
+                                    if (editingReview) {
+                                      setEditingReview({ ...editingReview, verified: e.target.checked });
+                                    } else {
+                                      setNewReview({ ...newReview, verified: e.target.checked });
+                                    }
+                                  }}
+                                  className="review-form-checkbox"
+                                />
+                                Verified Review
+                              </label>
+                            </div>
+                            <div className="review-form-group">
+                              <label className="review-form-label">
+                                <input
+                                  type="checkbox"
+                                  checked={editingReview ? editingReview.featured : newReview.featured}
+                                  onChange={(e) => {
+                                    if (editingReview) {
+                                      setEditingReview({ ...editingReview, featured: e.target.checked });
+                                    } else {
+                                      setNewReview({ ...newReview, featured: e.target.checked });
+                                    }
+                                  }}
+                                  className="review-form-checkbox"
+                                />
+                                Featured Review
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="review-form-actions">
+                          <button
+                            onClick={() => {
+                              setShowReviewForm(false);
+                              setEditingReview(null);
+                              setNewReview({
+                                name: '',
+                                rating: 5,
+                                text: '',
+                                package: '',
+                                verified: false,
+                                featured: false
+                              });
+                            }}
+                            className="review-form-button secondary"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (editingReview) {
+                                updateReview(editingReview.id);
+                              } else {
+                                addReview();
+                              }
+                              setShowReviewForm(false);
+                            }}
+                            className="review-form-button primary"
+                          >
+                            {editingReview ? 'Update Review' : 'Add Review'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {/* Reviews Table */}
+                  <div className="reviews-list">
+                    <h3>All Reviews ({reviews.length})</h3>
+                    {reviews.length === 0 ? (
+                      <div className="no-reviews">
+                        <p>No reviews yet. Add your first review!</p>
+                      </div>
+                    ) : (
+                      reviews.map((review) => (
+                        <div key={review.id} className="review-card">
+                          <div className="review-card-header">
+                            <div className="review-info">
+                              <div className="review-rating">
+                                {'⭐'.repeat(review.rating)}
+                              </div>
+                              <div className="review-author">
+                                <strong>{review.name}</strong>
+                                {review.verified && <span className="verified-badge">✓ Verified</span>}
+                                {review.featured && <span className="featured-badge">⭐ Featured</span>}
+                              </div>
+                              <div className="review-meta">
+                                <span className="review-date">{new Date(review.date).toLocaleDateString()}</span>
+                                {review.package && <span className="review-package">• {review.package}</span>}
+                              </div>
+                            </div>
+                            <div className="review-actions">
+                              <button
+                                onClick={() => {
+                                  setEditingReview({ ...review });
+                                  setShowReviewForm(true);
+                                }}
+                                className="action-btn edit"
+                                title="Edit Review"
+                              >
+                                ✏️
+                              </button>
+                              <button
+                                onClick={() => toggleReviewFeatured(review.id)}
+                                className={`action-btn ${review.featured ? 'featured' : 'unfeatured'}`}
+                                title={review.featured ? 'Remove from Featured' : 'Mark as Featured'}
+                              >
+                                {review.featured ? '⭐' : '☆'}
+                              </button>
+                              <button
+                                onClick={() => toggleReviewVerified(review.id)}
+                                className={`action-btn ${review.verified ? 'verified' : 'unverified'}`}
+                                title={review.verified ? 'Mark as Unverified' : 'Mark as Verified'}
+                              >
+                                {review.verified ? '✓' : '○'}
+                              </button>
+                              <button
+                                onClick={() => deleteReview(review.id)}
+                                className="action-btn delete"
+                                title="Delete Review"
+                              >
+                                🗑️
+                              </button>
+                            </div>
+                          </div>
+                          <div className="review-content">
+                            <p className="review-text">"{review.text}"</p>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
+
+        {/* Perry Assistant - Non-breaking addition */}
+        <PerryAssistant 
+          currentStep={currentStep}
+          selectedPackage={selectedPackage}
+          selectedAddons={selectedAddons}
+          clientInfo={clientInfo}
+        />
 
       </div>
     </div>
