@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import './index.css';
-import { packages, categoryNames, addons, discountCodes } from './packages.js';
+import { packages, categoryNames, addons } from './packages.js';
 
 function App() {
   const [currentStep, setCurrentStep] = useState('welcome');
@@ -39,9 +39,6 @@ function App() {
   const [editingPackage, setEditingPackage] = useState(null);
   const [editingDiscount, setEditingDiscount] = useState(null);
   const [showPackageEditor, setShowPackageEditor] = useState(false);
-  const [showDiscountEditor, setShowDiscountEditor] = useState(false);
-  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
-  const [selectedBookingForInvoice, setSelectedBookingForInvoice] = useState(null);
 
   // At the top of App function, add:
   const [hstSelectedMonth, setHstSelectedMonth] = React.useState(new Date().getMonth());
@@ -50,10 +47,102 @@ function App() {
   // At the top of App function, after other useState hooks:
   const [calendarView, setCalendarView] = useState('year');
 
+  // AUTO-SAVE PROGRESS
+  const [bookingProgress, setBookingProgress] = useState(() => {
+    const saved = localStorage.getItem('peridotBookingProgress');
+    return saved ? JSON.parse(saved) : null;
+  });
+
+  // WEATHER ALERT FOR OUTDOOR SESSIONS
+  const [weatherData, setWeatherData] = useState(null);
+
+  // VOICE COMMANDS FOR ACCESSIBILITY
+  const [voiceEnabled, setVoiceEnabled] = useState(false);
+
+  // EMAIL AUTOMATION SYSTEM
+  const [emailSettings, setEmailSettings] = useState(() => {
+    const saved = localStorage.getItem('peridotEmailSettings');
+    return saved ? JSON.parse(saved) : {
+      autoConfirmation: true,
+      autoReminders: true,
+      autoFollowUp: true,
+      reminderDays: 2,
+      followUpDays: 3
+    };
+  });
+
+  // eslint-disable-next-line no-unused-vars
+  const [emailTemplates, setEmailTemplates] = useState(() => {
+    const saved = localStorage.getItem('peridotEmailTemplates');
+    return saved ? JSON.parse(saved) : {
+      confirmation: {
+        subject: 'Booking Confirmed - Your Peridot Images Session',
+        body: `Dear {clientName},
+
+Your photography session has been confirmed!
+
+📋 SESSION DETAILS:
+Date: {sessionDate}
+Time: {sessionTime}
+Package: {packageName}
+Location: Barrhaven Studio, Ottawa
+
+📧 We'll send you a preparation guide 48 hours before your session.
+📸 Your edited photos will be ready within 7-10 business days.
+
+Thank you for choosing Peridot Images!
+
+Best regards,
+The Peridot Images Team`
+      },
+      reminder: {
+        subject: 'Session Reminder - Tomorrow at {sessionTime}',
+        body: `Hi {clientName},
+
+Just a friendly reminder about your photography session tomorrow!
+
+📅 {sessionDate} at {sessionTime}
+📍 Barrhaven Studio, Ottawa
+📦 {packageName}
+
+PREPARATION TIPS:
+- Arrive 10 minutes early
+- Bring your outfits as discussed
+- Come well-rested and ready to smile!
+
+See you tomorrow!
+
+Peridot Images Team`
+      },
+      followUp: {
+        subject: 'Thank You + Your Photos Are Ready!',
+        body: `Dear {clientName},
+
+Thank you for an amazing session! Your photos are now ready.
+
+📸 View & Download: [Gallery Link]
+⭐ We'd love a review if you're happy with your experience!
+
+Questions? Just reply to this email.
+
+With gratitude,
+Peridot Images Team`
+      }
+    };
+  });
+
   // Additional state for time management
   const [blockedTimeSlots, setBlockedTimeSlots] = useState({});
   const [fakeBookings, setFakeBookings] = useState({});
+  // eslint-disable-next-line no-unused-vars
   const [weekdaysEnabled, setWeekdaysEnabled] = useState(true);
+
+  // CLIENT MANAGEMENT SYSTEM
+  // eslint-disable-next-line no-unused-vars
+  const [clientNotes, setClientNotes] = useState(() => {
+    const saved = localStorage.getItem('peridotClientNotes');
+    return saved ? JSON.parse(saved) : {};
+  });
 
   // Add these new state variables for discount management
   const [discountCodes, setDiscountCodes] = useState([]);
@@ -67,6 +156,31 @@ function App() {
     usageLimit: '',
     isActive: true
   });
+
+  // VISITOR ANALYTICS & LOCATION TRACKING
+  const [visitorAnalytics, setVisitorAnalytics] = useState(() => {
+    const saved = localStorage.getItem('peridotVisitorAnalytics');
+    return saved ? JSON.parse(saved) : {
+      totalVisitors: 0,
+      uniqueVisitors: 0,
+      pageViews: 0,
+      locations: {},
+      referrers: {},
+      devices: {},
+      browsers: {},
+      dailyStats: {},
+      conversionFunnel: {
+        visitors: 0,
+        categoryViews: 0,
+        packageViews: 0,
+        bookingStarted: 0,
+        bookingCompleted: 0
+      }
+    };
+  });
+
+  const [currentSession, setCurrentSession] = useState(null);
+  const [userLocation, setUserLocation] = useState(null);
 
   // --- Package & Category Management State ---
   const [localPackages, setLocalPackages] = useState(() => {
@@ -127,13 +241,6 @@ function App() {
     setShowPackageEditor(false);
     setEditingPackage(null);
     setPackageFormData({ name: '', price: '', duration: '', people: '', outfits: '', backdrops: '', images: '', location: '', special: '', note: '', isActive: true });
-  }
-
-  // Handler: Edit Package
-  function editPackage(pkg) {
-    setEditingPackage(pkg);
-    setPackageFormData({ ...pkg });
-    setShowPackageEditor(true);
   }
 
   // Handler: Duplicate Package
@@ -286,6 +393,7 @@ function App() {
     const invoice = generateInvoice(booking);
     const hstBreakdown = calculateHSTBreakdown(booking.totalPrice);
     
+    // Create a more professional PDF-ready HTML
     const invoiceHTML = `
       <!DOCTYPE html>
       <html>
@@ -293,129 +401,137 @@ function App() {
           <meta charset="UTF-8">
           <title>Invoice ${invoice.invoiceNumber}</title>
           <style>
-              body { font-family: 'Segoe UI', Arial, sans-serif; margin: 40px; color: #2d3748; }
-              .invoice-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; border-bottom: 3px solid #f59e0b; padding-bottom: 20px; }
-              .logo { font-size: 2.5rem; font-weight: bold; color: #f59e0b; }
-              .company-info { text-align: right; }
-              .invoice-title { font-size: 2rem; font-weight: bold; color: #2d3748; margin-bottom: 30px; }
-              .invoice-details { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: 40px; }
-              .details-section h3 { color: #f59e0b; margin-bottom: 15px; font-size: 1.2rem; }
-              .details-section p { margin: 5px 0; line-height: 1.6; }
-              .invoice-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-              .invoice-table th { background: #f59e0b; color: white; padding: 15px; text-align: left; }
-              .invoice-table td { padding: 12px 15px; border-bottom: 1px solid #e2e8f0; }
-              .invoice-table tr:nth-child(even) { background: #f7fafc; }
-              .totals { margin-left: auto; width: 300px; }
-              .total-row { display: flex; justify-content: space-between; padding: 8px 0; }
-              .total-row.final { font-weight: bold; font-size: 1.2rem; color: #f59e0b; border-top: 2px solid #f59e0b; padding-top: 15px; }
-              .footer { margin-top: 50px; text-align: center; color: #718096; border-top: 1px solid #e2e8f0; padding-top: 20px; }
-              .hst-note { background: #fef7ed; border: 1px solid #f59e0b; border-radius: 8px; padding: 15px; margin: 20px 0; }
+              @media print { 
+                body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+                .no-print { display: none !important; }
+              }
+              body { font-family: 'Arial', sans-serif; margin: 0; padding: 20px; color: #2d3748; background: white; }
+              .invoice-container { max-width: 800px; margin: 0 auto; background: white; border: 2px solid #f59e0b; border-radius: 12px; overflow: hidden; }
+              .invoice-header { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; padding: 30px; text-align: center; }
+              .logo { font-size: 2.5rem; font-weight: bold; margin-bottom: 8px; }
+              .company-tagline { font-size: 1rem; opacity: 0.9; }
+              .invoice-title { background: #2d3748; color: white; text-align: center; padding: 20px; font-size: 1.8rem; font-weight: bold; margin: 0; }
+              .invoice-details { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; padding: 30px; background: #f7fafc; }
+              .details-section h3 { color: #f59e0b; margin-bottom: 15px; font-size: 1.2rem; border-bottom: 2px solid #f59e0b; padding-bottom: 5px; }
+              .details-section p { margin: 8px 0; line-height: 1.6; }
+              .services-section { padding: 30px; }
+              .services-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+              .services-table th { background: #f59e0b; color: white; padding: 15px; text-align: left; font-weight: bold; }
+              .services-table td { padding: 12px 15px; border-bottom: 1px solid #e2e8f0; }
+              .services-table tr:nth-child(even) { background: #f8fafc; }
+              .totals-section { background: #2d3748; color: white; padding: 30px; }
+              .totals-table { width: 100%; max-width: 400px; margin-left: auto; }
+              .total-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 1.1rem; }
+              .total-row.final { font-weight: bold; font-size: 1.4rem; color: #fbbf24; border-top: 2px solid #fbbf24; padding-top: 15px; margin-top: 10px; }
+              .payment-info { background: #f0f9ff; border: 2px solid #3b82f6; border-radius: 8px; padding: 20px; margin: 20px 30px; }
+              .payment-info h4 { color: #1e40af; margin-bottom: 15px; }
+              .payment-details { font-weight: bold; color: #1e40af; }
+              .footer { background: #f7fafc; padding: 30px; text-align: center; border-top: 1px solid #e2e8f0; }
+              .download-btn { background: #10b981; color: white; padding: 12px 24px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin: 10px; }
+              .email-btn { background: #3b82f6; color: white; padding: 12px 24px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin: 10px; }
           </style>
       </head>
       <body>
-          <div class="invoice-header">
-              <div>
+          <div class="invoice-container">
+              <div class="invoice-header">
                   <div class="logo">Peridot Images</div>
-                  <p style="margin: 5px 0; color: #718096;">Professional Photography Services</p>
+                  <div class="company-tagline">Professional Photography Services • Ottawa, Canada</div>
               </div>
-              <div class="company-info">
-                  <p><strong>Peridot Images</strong></p>
-                  <p>Barrhaven Studio, Ottawa</p>
-                  <p>📧 imagesbyperidot@gmail.com</p>
-                  <p>📱 (647) 444-3767</p>
-                  <p>📸 @peridotimages</p>
+
+              <div class="invoice-title">INVOICE ${invoice.invoiceNumber}</div>
+
+              <div class="invoice-details">
+                  <div class="details-section">
+                      <h3>Bill To:</h3>
+                      <p><strong>${booking.clientName}</strong></p>
+                      <p>📧 ${booking.email}</p>
+                      <p>📱 ${booking.phone}</p>
+                  </div>
+                  <div class="details-section">
+                      <h3>Session Details:</h3>
+                      <p><strong>Date:</strong> ${new Date(booking.date).toLocaleDateString('en-CA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                      <p><strong>Time:</strong> ${booking.time}</p>
+                      <p><strong>Duration:</strong> ${booking.duration}</p>
+                      <p><strong>Invoice Date:</strong> ${new Date().toLocaleDateString('en-CA')}</p>
+                      <p><strong>Due Date:</strong> ${booking.date}</p>
+                  </div>
+              </div>
+
+              <div class="services-section">
+                  <table class="services-table">
+                      <thead>
+                          <tr>
+                              <th>Service Description</th>
+                              <th>Amount (HST Included)</th>
+                          </tr>
+                      </thead>
+                      <tbody>
+                          <tr>
+                              <td>
+                                  <strong>${booking.package}</strong><br>
+                                  <small>Professional photography session at Barrhaven Studio</small>
+                              </td>
+                              <td><strong>$${booking.totalPrice}</strong></td>
+                          </tr>
+                      </tbody>
+                  </table>
+              </div>
+
+              <div class="totals-section">
+                  <div class="totals-table">
+                      <div class="total-row">
+                          <span>Service Amount:</span>
+                          <span>$${hstBreakdown.serviceAmount}</span>
+                      </div>
+                      <div class="total-row">
+                          <span>HST (13% Ontario):</span>
+                          <span>$${hstBreakdown.hstAmount}</span>
+                      </div>
+                      <div class="total-row final">
+                          <span>Total Amount Due:</span>
+                          <span>$${hstBreakdown.total}</span>
+                      </div>
+                  </div>
+              </div>
+
+              <div class="payment-info">
+                  <h4>💳 Payment Instructions</h4>
+                  <p>Please send e-transfer to: <span class="payment-details">alongejoan@gmail.com</span></p>
+                  <p>Reference: <span class="payment-details">${booking.clientName} - Invoice ${invoice.invoiceNumber}</span></p>
+                  <p><em>Payment due by session date. All prices include HST.</em></p>
+              </div>
+
+              <div class="footer">
+                  <p><strong>Peridot Images</strong> • Barrhaven Studio, Ottawa</p>
+                  <p>📧 imagesbyperidot@gmail.com • 📱 (647) 444-3767 • 📸 @peridotimages</p>
+                  <p><em>Thank you for choosing Peridot Images for your special moments!</em></p>
               </div>
           </div>
-
-          <div class="invoice-title">INVOICE ${invoice.invoiceNumber}</div>
-
-          <div class="invoice-details">
-              <div class="details-section">
-                  <h3>Bill To:</h3>
-                  <p><strong>${booking.clientName}</strong></p>
-                  <p>📧 ${booking.email}</p>
-                  <p>📱 ${booking.phone}</p>
-              </div>
-              <div class="details-section">
-                  <h3>Session Details:</h3>
-                  <p><strong>Date:</strong> ${new Date(booking.date).toLocaleDateString('en-CA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
-                  <p><strong>Time:</strong> ${booking.time}</p>
-                  <p><strong>Duration:</strong> ${booking.duration}</p>
-                  <p><strong>Location:</strong> Barrhaven Studio, Ottawa</p>
-              </div>
+          
+          <div class="no-print" style="text-align: center; margin: 20px;">
+              <button class="download-btn" onclick="window.print()">📄 Print/Save as PDF</button>
+              <button class="email-btn" onclick="sendInvoiceEmail()">📧 Email to Client</button>
+              <p><em>Use "Print/Save as PDF" to download the invoice, then attach it to your email.</em></p>
           </div>
 
-          <table class="invoice-table">
-              <thead>
-                  <tr>
-                      <th>Description</th>
-                      <th>Quantity</th>
-                      <th>Rate</th>
-                      <th>Amount</th>
-                  </tr>
-              </thead>
-              <tbody>
-                  <tr>
-                      <td><strong>${booking.package}</strong><br><small>Professional photography session</small></td>
-                      <td>1</td>
-                      <td>$${booking.packagePrice || booking.totalPrice}</td>
-                      <td>$${booking.packagePrice || booking.totalPrice}</td>
-                  </tr>
-                  ${(booking.addons || []).map(addon => `
-                      <tr>
-                          <td>${addon.name}<br><small>${addon.description}</small></td>
-                          <td>1</td>
-                          <td>$${addon.price}</td>
-                          <td>$${addon.price}</td>
-                      </tr>
-                  `).join('')}
-                  ${booking.discount ? `
-                      <tr>
-                          <td><strong>Discount: ${booking.discount.code}</strong><br><small>${booking.discount.description}</small></td>
-                          <td>1</td>
-                          <td>-$${booking.discount.type === 'fixed' ? booking.discount.value : Math.round((hstBreakdown.serviceAmount * booking.discount.value / 100) * 100) / 100}</td>
-                          <td>-$${booking.discount.type === 'fixed' ? booking.discount.value : Math.round((hstBreakdown.serviceAmount * booking.discount.value / 100) * 100) / 100}</td>
-                      </tr>
-                  ` : ''}
-              </tbody>
-          </table>
-
-          <div class="totals">
-              <div class="total-row">
-                  <span>Subtotal:</span>
-                  <span>$${hstBreakdown.serviceAmount}</span>
-              </div>
-              <div class="total-row">
-                  <span>HST (13%):</span>
-                  <span>$${hstBreakdown.hstAmount}</span>
-              </div>
-              <div class="total-row final">
-                  <span>Total:</span>
-                  <span>$${hstBreakdown.total}</span>
-              </div>
-          </div>
-
-          <div class="hst-note">
-              <strong>HST Information:</strong> This invoice includes 13% Harmonized Sales Tax (HST) as required for Ontario, Canada.
-          </div>
-
-          <div class="footer">
-              <p><strong>Payment Instructions:</strong></p>
-              <p>Please send e-transfer to: <strong>alongejoan@gmail.com</strong></p>
-              <p>Reference: ${booking.clientName} - Invoice ${invoice.invoiceNumber}</p>
-              <p style="margin-top: 20px;">Thank you for choosing Peridot Images!</p>
-          </div>
+          <script>
+              function sendInvoiceEmail() {
+                  const subject = encodeURIComponent('Invoice ${invoice.invoiceNumber} - Your Peridot Images Session');
+                  const body = encodeURIComponent('Dear ${booking.clientName},\\n\\nThank you for booking with Peridot Images! Please find your invoice attached.\\n\\n📋 INVOICE DETAILS:\\nInvoice Number: ${invoice.invoiceNumber}\\nSession Date: ${new Date(booking.date).toLocaleDateString('en-CA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}\\nSession Time: ${booking.time}\\nPackage: ${booking.package}\\nTotal Amount: $${booking.totalPrice} (HST included)\\n\\n💳 PAYMENT INSTRUCTIONS:\\nPlease send e-transfer to: alongejoan@gmail.com\\nReference: ${booking.clientName} - Invoice ${invoice.invoiceNumber}\\n\\n📍 SESSION LOCATION:\\nBarrhaven Studio, Ottawa\\n\\nIMPORTANT: Please save this invoice as a PDF first (using the Print/Save as PDF button above), then attach it to this email before sending.\\n\\nWe\\'re excited to create beautiful memories with you!\\n\\nBest regards,\\nPeridot Images Team\\n📧 imagesbyperidot@gmail.com\\n📱 (647) 444-3767\\n📸 @peridotimages');
+                  
+                  const mailtoLink = 'mailto:${booking.email}?subject=' + subject + '&body=' + body;
+                  window.opener.location.href = mailtoLink;
+                  alert('Email client opened! Please save this invoice as PDF first, then attach it to the email before sending.');
+              }
+          </script>
       </body>
       </html>
     `;
     
-    const blob = new Blob([invoiceHTML], { type: 'text/html' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Peridot-Invoice-${invoice.invoiceNumber}.html`;
-    a.click();
-    window.URL.revokeObjectURL(url);
+    // Open invoice in new window for printing/saving as PDF
+    const newWindow = window.open('', '_blank');
+    newWindow.document.write(invoiceHTML);
+    newWindow.document.close();
     
     // Mark invoice as sent in booking
     updateBookingStatus(booking.id, booking.status, booking.paymentStatus, { invoiceSent: true });
@@ -427,9 +543,9 @@ function App() {
     const hstBreakdown = calculateHSTBreakdown(booking.totalPrice);
     
     const subject = `Invoice ${invoice.invoiceNumber} - Your Peridot Images Session`;
-    const body = `Hi ${booking.clientName},
+    const body = `Dear ${booking.clientName},
 
-Thank you for booking with Peridot Images! Please find your invoice details below:
+Thank you for booking with Peridot Images! Please find your session invoice below.
 
 📋 INVOICE DETAILS:
 Invoice Number: ${invoice.invoiceNumber}
@@ -438,9 +554,9 @@ Session Time: ${booking.time}
 Package: ${booking.package}
 
 💰 PAYMENT BREAKDOWN:
-Subtotal: $${hstBreakdown.serviceAmount}
+Service Amount: $${hstBreakdown.serviceAmount}
 HST (13%): $${hstBreakdown.hstAmount}
-Total: $${hstBreakdown.total}
+Total Amount Due: $${hstBreakdown.total}
 
 💳 PAYMENT INSTRUCTIONS:
 Please send e-transfer to: alongejoan@gmail.com
@@ -449,16 +565,33 @@ Reference: ${booking.clientName} - Invoice ${invoice.invoiceNumber}
 📍 SESSION LOCATION:
 Barrhaven Studio, Ottawa
 
+🔔 NEXT STEPS:
+1. Complete payment via e-transfer using the details above
+2. We'll send your session preparation guide 48 hours before your appointment
+3. Your beautifully edited photos will be delivered within 7-10 business days
+
+💾 DOWNLOAD YOUR INVOICE:
+For a printable PDF version of this invoice (for your tax records), please visit your booking confirmation or contact us.
+
 We're excited to create beautiful memories with you!
 
 Best regards,
-Peridot Images Team
+The Peridot Images Team
+
 📧 imagesbyperidot@gmail.com
 📱 (647) 444-3767
-📸 @peridotimages`;
+📸 @peridotimages
+🌐 Barrhaven Studio, Ottawa`;
 
     const mailtoLink = `mailto:${booking.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     window.location.href = mailtoLink;
+    
+    // Also open the PDF version for admin to download and attach if needed
+    setTimeout(() => {
+      if (window.confirm('Would you like to open the PDF invoice as well? You can save it and attach it to the email if needed.')) {
+        downloadInvoice(booking);
+      }
+    }, 1000);
     
     // Mark invoice as sent
     updateBookingStatus(booking.id, booking.status, booking.paymentStatus, { invoiceSent: true });
@@ -470,6 +603,12 @@ Peridot Images Team
     if (booking) {
       updateBookingStatus(bookingId, 'confirmed', 'paid');
       emailInvoice(booking);
+      
+      // Auto-send reminder email if enabled
+      if (emailSettings.autoReminders) {
+        sendAutomatedEmail(booking, 'reminder');
+      }
+      
       alert('✅ Booking confirmed and invoice sent to client!');
     }
   };
@@ -689,11 +828,6 @@ Peridot Images Team
     return Math.round(total * 100) / 100;
   };
 
-  // Display price with HST notice in your order summary
-  const formatPriceDisplay = (price) => {
-    return `$${price} (HST included)`;
-  };
-
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { 
@@ -793,6 +927,11 @@ Peridot Images Team
     existingBookings.push(newBooking);
     localStorage.setItem('peridotBookings', JSON.stringify(existingBookings));
     
+    // Auto-send confirmation email if enabled
+    if (emailSettings.autoConfirmation) {
+      sendAutomatedEmail(newBooking, 'confirmation');
+    }
+    
     setCurrentStep('confirmation');
   };
 
@@ -810,11 +949,6 @@ Peridot Images Team
     };
   };
 
-  // Display price with HST notice for clients
-  const formatPriceWithHSTNotice = (price) => {
-    return `$${price} (HST included)`;
-  };
-
   // Monthly HST calculator for admin
   const calculateMonthlyHST = (bookings, month = null, year = null) => {
     const currentDate = new Date();
@@ -829,21 +963,22 @@ Peridot Images Team
     });
     
     let totalRevenue = 0;
-    let totalHST = 0;
-    let totalSubtotal = 0;
+    let totalHSTCollected = 0;
+    let totalServiceAmount = 0;
     
     monthlyBookings.forEach(booking => {
       const breakdown = calculateHSTBreakdown(booking.totalPrice);
       totalRevenue += breakdown.total;
-      totalHST += breakdown.hstAmount;
-      totalSubtotal += breakdown.serviceAmount;
+      totalHSTCollected += breakdown.hstAmount;
+      totalServiceAmount += breakdown.serviceAmount;
     });
     
     return {
       month: currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
       totalRevenue: Math.round(totalRevenue * 100) / 100,
-      totalHST: Math.round(totalHST * 100) / 100,
-      totalSubtotal: Math.round(totalSubtotal * 100) / 100,
+      totalHSTCollected: Math.round(totalHSTCollected * 100) / 100,
+      totalServiceAmount: Math.round(totalServiceAmount * 100) / 100,
+      hstOwedToGovernment: Math.round(totalHSTCollected * 100) / 100, // This is what you owe CRA
       bookingCount: monthlyBookings.length,
       bookings: monthlyBookings
     };
@@ -875,6 +1010,7 @@ Peridot Images Team
   };
 
   // Download invoice (client pays exactly the package price, no extra)
+  // eslint-disable-next-line no-unused-vars
   const downloadInvoiceWithHST = (booking) => {
     const invoice = generateInvoiceWithHSTBreakdown(booking);
     
@@ -1004,26 +1140,27 @@ Peridot Images Team
     
     // Calculate totals
     let totalRevenue = 0;
-    let totalHST = 0;
+    let totalHSTCollected = 0;
     let totalServiceAmount = 0;
     
     const detailedBookings = thisMonthBookings.map(booking => {
       const breakdown = calculateHSTBreakdown(booking.totalPrice);
       totalRevenue += breakdown.total;
-      totalHST += breakdown.hstAmount;
+      totalHSTCollected += breakdown.hstAmount;
       totalServiceAmount += breakdown.serviceAmount;
       
       return {
         ...booking,
-        breakdown
+        hstBreakdown: breakdown
       };
     });
     
     return {
       month: currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
       totalRevenue: Math.round(totalRevenue * 100) / 100,
-      totalHST: Math.round(totalHST * 100) / 100,
+      totalHSTCollected: Math.round(totalHSTCollected * 100) / 100,
       totalServiceAmount: Math.round(totalServiceAmount * 100) / 100,
+      hstOwedToGovernment: Math.round(totalHSTCollected * 100) / 100, // This is what you owe CRA
       bookingCount: thisMonthBookings.length,
       bookings: detailedBookings
     };
@@ -1040,7 +1177,7 @@ Peridot Images Team
       ['SUMMARY FOR CRA:'],
       [`Total Revenue: $${report.totalRevenue}`],
       [`Service Amount: $${report.totalServiceAmount}`],
-      [`HST Collected: $${report.totalHST}`],
+      [`HST Collected: $${report.totalHSTCollected}`],
       [`Sessions Count: ${report.bookingCount}`],
       [''],
       ['BOOKING DETAILS:'],
@@ -1049,53 +1186,15 @@ Peridot Images Team
         booking.date,
         booking.clientName,
         booking.package,
-        `$${booking.breakdown.total}`,
-        `$${booking.breakdown.serviceAmount}`,
-        `$${booking.breakdown.hstAmount}`
+        `$${booking.hstBreakdown.total}`,
+        `$${booking.hstBreakdown.serviceAmount}`,
+        `$${booking.hstBreakdown.hstAmount}`
       ])
     ];
     
     const csvContent = csvData.map(row => 
       Array.isArray(row) ? row.join(',') : row
     ).join('\n');
-    
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `HST-Report-${report.month.replace(' ', '-')}.csv`;
-    a.click();
-    window.URL.revokeObjectURL(url);
-  };
-
-  // Export monthly HST report for CRA
-  const exportMonthlyHSTReport = (bookings, month, year) => {
-    const report = calculateMonthlyHST(bookings, month, year);
-    
-    const csvContent = [
-      ['Peridot Images - Monthly HST Report'],
-      [`Month: ${report.month}`],
-      [''],
-      ['Summary:'],
-      [`Total Revenue (HST Included): $${report.totalRevenue}`],
-      [`Service Amount: $${report.totalSubtotal}`],
-      [`HST Collected: $${report.totalHST}`],
-      [`Number of Sessions: ${report.bookingCount}`],
-      [''],
-      ['Booking Details:'],
-      ['Date', 'Client', 'Package', 'Total', 'Service Amount', 'HST Amount'],
-      ...report.bookings.map(booking => {
-        const breakdown = calculateHSTBreakdown(booking.totalPrice);
-        return [
-          booking.date,
-          booking.clientName,
-          booking.package,
-          `$${breakdown.total}`,
-          `$${breakdown.serviceAmount}`,
-          `$${breakdown.hstAmount}`
-        ];
-      })
-    ].map(row => Array.isArray(row) ? row.join(',') : row).join('\n');
     
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
@@ -1147,7 +1246,7 @@ Peridot Images Team
 
   // Get time slots with booking info for a specific date
   const getTimeSlotInfo = (date) => {
-    const timeSlots = ['9:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM', '6:00 PM'];
+    // const timeSlots = ['9:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM', '6:00 PM'];
     const dayOfWeek = new Date(date).getDay();
     
     // Filter times based on day (Saturday/Sunday only)
@@ -1299,6 +1398,285 @@ Peridot Images Team
     }
   }
 
+  // EMAIL AUTOMATION FUNCTIONS
+  // Auto-send emails based on booking status changes
+  const sendAutomatedEmail = (booking, type) => {
+    if (!emailSettings[`auto${type.charAt(0).toUpperCase() + type.slice(1)}`]) return;
+    
+    const template = emailTemplates[type];
+    const personalizedSubject = template.subject
+      .replace('{clientName}', booking.clientName)
+      .replace('{sessionTime}', booking.time)
+      .replace('{sessionDate}', new Date(booking.date).toLocaleDateString('en-CA'));
+      
+    const personalizedBody = template.body
+      .replace(/{clientName}/g, booking.clientName)
+      .replace(/{sessionDate}/g, new Date(booking.date).toLocaleDateString('en-CA', { 
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
+      }))
+      .replace(/{sessionTime}/g, booking.time)
+      .replace(/{packageName}/g, booking.package);
+
+    const mailtoLink = `mailto:${booking.email}?subject=${encodeURIComponent(personalizedSubject)}&body=${encodeURIComponent(personalizedBody)}`;
+    window.open(mailtoLink);
+  };
+
+  // CLIENT MANAGEMENT FUNCTIONS
+  // const addClientNote = (clientEmail, note) => {
+  //   const timestamp = new Date().toISOString();
+  //   setClientNotes(prev => ({
+  //     ...prev,
+  //     [clientEmail]: [
+  //       ...(prev[clientEmail] || []),
+  //       { id: Date.now(), note, timestamp, type: 'note' }
+  //     ]
+  //   }));
+  // };
+
+  // const getClientProfile = (clientEmail) => {
+  //   const clientBookings = bookings.filter(b => b.email === clientEmail);
+  //   const totalSpent = clientBookings
+  //     .filter(b => b.status === 'confirmed' && b.paymentStatus === 'paid')
+  //     .reduce((sum, b) => sum + b.totalPrice, 0);
+    
+  //   const notes = clientNotes[clientEmail] || [];
+  //   const lastBooking = clientBookings.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
+    
+  //   return {
+  //     email: clientEmail,
+  //     name: lastBooking?.clientName || 'Unknown',
+  //     phone: lastBooking?.phone || '',
+  //     totalBookings: clientBookings.length,
+  //     totalSpent,
+  //     notes,
+  //     lastBooking: lastBooking?.date || 'Never',
+  //     preferredCommunication: lastBooking?.preferredCommunication || 'email',
+  //     status: clientBookings.length > 1 ? 'repeat' : 'new'
+  //   };
+  // };
+
+  // ADVANCED ANALYTICS SYSTEM
+  const getAdvancedAnalytics = () => {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    
+    // Revenue trends
+    const last6Months = Array.from({length: 6}, (_, i) => {
+      const date = new Date(currentYear, currentMonth - i, 1);
+      const monthBookings = bookings.filter(b => {
+        const bookingDate = new Date(b.createdAt);
+        return bookingDate.getMonth() === date.getMonth() && 
+               bookingDate.getFullYear() === date.getFullYear() &&
+               b.status === 'confirmed' && b.paymentStatus === 'paid';
+      });
+      
+      return {
+        month: date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
+        revenue: monthBookings.reduce((sum, b) => sum + b.totalPrice, 0),
+        bookings: monthBookings.length
+      };
+    }).reverse();
+
+    // Package popularity
+    const packageStats = bookings
+      .filter(b => b.status === 'confirmed')
+      .reduce((acc, booking) => {
+        acc[booking.package] = (acc[booking.package] || 0) + 1;
+        return acc;
+      }, {});
+
+    // Peak booking times
+    const timeSlotStats = bookings
+      .filter(b => b.status === 'confirmed')
+      .reduce((acc, booking) => {
+        acc[booking.time] = (acc[booking.time] || 0) + 1;
+        return acc;
+      }, {});
+
+    // Conversion rates
+    const totalInquiries = bookings.length;
+    const confirmedBookings = bookings.filter(b => b.status === 'confirmed').length;
+    const conversionRate = totalInquiries > 0 ? (confirmedBookings / totalInquiries * 100).toFixed(1) : 0;
+
+    // Average booking value
+    const confirmedRevenue = bookings
+      .filter(b => b.status === 'confirmed' && b.paymentStatus === 'paid')
+      .reduce((sum, b) => sum + b.totalPrice, 0);
+    const avgBookingValue = confirmedBookings > 0 ? (confirmedRevenue / confirmedBookings).toFixed(0) : 0;
+
+    return {
+      last6Months,
+      packageStats,
+      timeSlotStats,
+      conversionRate,
+      avgBookingValue,
+      totalInquiries,
+      confirmedBookings
+    };
+  };
+
+  // BUSINESS INTELLIGENCE
+  const getBusinessInsights = () => {
+    const analytics = getAdvancedAnalytics();
+    const insights = [];
+
+    // Revenue insights
+    if (analytics.last6Months.length >= 2) {
+      const currentMonth = analytics.last6Months[analytics.last6Months.length - 1];
+      const lastMonth = analytics.last6Months[analytics.last6Months.length - 2];
+      const growth = ((currentMonth.revenue - lastMonth.revenue) / (lastMonth.revenue || 1) * 100).toFixed(1);
+      
+      insights.push({
+        type: growth > 0 ? 'positive' : 'negative',
+        icon: growth > 0 ? '📈' : '📉',
+        title: 'Monthly Revenue Trend',
+        message: `${growth}% ${growth > 0 ? 'increase' : 'decrease'} from last month`,
+        action: growth < 0 ? 'Consider promotional campaigns' : 'Great momentum!'
+      });
+    }
+
+    // Package recommendations
+    const topPackage = Object.entries(analytics.packageStats)
+      .sort((a, b) => b[1] - a[1])[0];
+    
+    if (topPackage) {
+      insights.push({
+        type: 'info',
+        icon: '📦',
+        title: 'Most Popular Package',
+        message: `${topPackage[0]} (${topPackage[1]} bookings)`,
+        action: 'Consider creating similar packages or upselling add-ons'
+      });
+    }
+
+    // Time slot optimization
+    const peakTime = Object.entries(analytics.timeSlotStats)
+      .sort((a, b) => b[1] - a[1])[0];
+      
+    if (peakTime) {
+      insights.push({
+        type: 'info',
+        icon: '⏰',
+        title: 'Peak Booking Time',
+        message: `${peakTime[0]} is most popular`,
+        action: 'Consider premium pricing for peak slots'
+      });
+    }
+
+    // Conversion optimization
+    if (analytics.conversionRate < 70) {
+      insights.push({
+        type: 'warning',
+        icon: '🎯',
+        title: 'Conversion Opportunity',
+        message: `${analytics.conversionRate}% conversion rate`,
+        action: 'Follow up with pending bookings or improve booking flow'
+      });
+    }
+
+    return insights;
+  };
+
+  // QUICK ACTIONS SYSTEM
+  const quickActions = [
+    {
+      id: 'email-today-clients',
+      title: 'Email Today\'s Clients',
+      icon: '📧',
+      action: () => {
+        const today = new Date().toISOString().split('T')[0];
+        const todayBookings = bookings.filter(b => b.date === today && b.status === 'confirmed');
+        
+        if (todayBookings.length === 0) {
+          alert('No confirmed sessions today!');
+          return;
+        }
+        
+        todayBookings.forEach(booking => {
+          sendAutomatedEmail(booking, 'reminder');
+        });
+      }
+    },
+    {
+      id: 'tomorrow-prep',
+      title: 'Tomorrow\'s Prep',
+      icon: '📋',
+      action: () => {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const tomorrowStr = tomorrow.toISOString().split('T')[0];
+        const tomorrowBookings = bookings.filter(b => b.date === tomorrowStr && b.status === 'confirmed');
+        
+        if (tomorrowBookings.length === 0) {
+          alert('No sessions tomorrow!');
+          return;
+        }
+        
+        const prepList = tomorrowBookings.map(b => 
+          `${b.time} - ${b.clientName} (${b.package})`
+        ).join('\n');
+        
+        alert(`Tomorrow's Sessions:\n\n${prepList}\n\nDon't forget to:\n• Charge camera batteries\n• Prepare studio setup\n• Review client preferences`);
+      }
+    },
+    {
+      id: 'weekly-report',
+      title: 'Generate Weekly Report',
+      icon: '📊',
+      action: () => {
+        const weekAgo = new Date();
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        
+        const weekBookings = bookings.filter(b => 
+          new Date(b.createdAt) >= weekAgo && b.status === 'confirmed'
+        );
+        
+        const weekRevenue = weekBookings.reduce((sum, b) => sum + b.totalPrice, 0);
+        
+        const report = `📊 WEEKLY REPORT
+        
+Period: ${weekAgo.toLocaleDateString()} - ${new Date().toLocaleDateString()}
+
+💰 Revenue: $${weekRevenue}
+📅 Bookings: ${weekBookings.length}
+📈 Avg Value: $${weekBookings.length > 0 ? Math.round(weekRevenue / weekBookings.length) : 0}
+
+Top Package: ${weekBookings.length > 0 ? weekBookings.reduce((acc, b) => {
+  acc[b.package] = (acc[b.package] || 0) + 1;
+  return acc;
+}, {}) : 'None'}`;
+
+        alert(report);
+      }
+    },
+    {
+      id: 'backup-data',
+      title: 'Backup All Data',
+      icon: '💾',
+      action: () => {
+        const allData = {
+          bookings,
+          packages: localPackages,
+          categories: localCategoryNames,
+          discounts: discountCodes,
+          timestamp: new Date().toISOString()
+        };
+        
+        const dataStr = JSON.stringify(allData, null, 2);
+        const dataBlob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(dataBlob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `peridot-backup-${new Date().toISOString().split('T')[0]}.json`;
+        link.click();
+        URL.revokeObjectURL(url);
+        
+        alert('✅ Data backup downloaded successfully!');
+      }
+    }
+  ];
+
   // Add at the top of App function, after useState imports:
   const [theme, setTheme] = useState(() => {
     const saved = localStorage.getItem('peridotTheme');
@@ -1351,6 +1729,505 @@ Peridot Images Team
     localStorage.setItem('peridotLang', language);
   }, [language]);
 
+  // Effect: Save email settings
+  React.useEffect(() => {
+    localStorage.setItem('peridotEmailSettings', JSON.stringify(emailSettings));
+  }, [emailSettings]);
+
+  // Effect: Save client notes
+  React.useEffect(() => {
+    localStorage.setItem('peridotClientNotes', JSON.stringify(clientNotes));
+  }, [clientNotes]);
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  React.useEffect(() => {
+    if (currentStep === 'categories') {
+      trackPageView('categories');
+      trackFunnelStep('categoryViews');
+    } else if (currentStep === 'packages') {
+      trackPageView('packages');
+      trackFunnelStep('packageViews');
+    } else if (currentStep === 'clientform') {
+      trackPageView('booking-form');
+      trackFunnelStep('bookingStarted');
+    } else if (currentStep === 'confirmation') {
+      trackPageView('confirmation');
+      trackFunnelStep('bookingCompleted');
+    }
+  }, [currentStep]);
+
+  // Save progress automatically
+  React.useEffect(() => {
+    if (currentStep !== 'welcome') {
+      const progress = {
+        step: currentStep,
+        category: selectedCategory,
+        package: selectedPackage,
+        addons: selectedAddons,
+        date: selectedDate,
+        time: selectedTime,
+        clientInfo: clientInfo,
+        discount: appliedDiscount,
+        timestamp: new Date().toISOString()
+      };
+      localStorage.setItem('peridotBookingProgress', JSON.stringify(progress));
+      setBookingProgress(progress);
+    }
+  }, [currentStep, selectedCategory, selectedPackage, selectedAddons, selectedDate, selectedTime, clientInfo, appliedDiscount]);
+
+  // VOICE COMMANDS FOR ACCESSIBILITY
+  React.useEffect(() => {
+    if ('speechSynthesis' in window && voiceEnabled) {
+      const speak = (text) => {
+        const utterance = new SpeechSynthesisUtterance(text);
+        speechSynthesis.speak(utterance);
+      };
+      
+      // Announce current step
+      const stepAnnouncements = {
+        'welcome': 'Welcome to Peridot Images booking system',
+        'categories': 'Please select your photography session type',
+        'packages': 'Choose your preferred package',
+        'addons': 'Add optional extras to your package',
+        'datetime': 'Select your preferred date and time',
+        'clientform': 'Please provide your contact information',
+        'payment': 'Review payment instructions',
+        'confirmation': 'Booking completed successfully'
+      };
+      
+      if (stepAnnouncements[currentStep]) {
+        speak(stepAnnouncements[currentStep]);
+      }
+    }
+  }, [currentStep, voiceEnabled]);
+
+  // Place this helper function inside the App component, before the return statement
+  function handleEmailWithPDFAttachment(booking) {
+    const subject = `Invoice ${Date.now()} - Your Peridot Images Session`;
+    const body = [
+      `Dear ${booking.clientName},`,
+      '',
+      'Please find attached your invoice for the upcoming photography session.',
+      '',
+      'Session Details:',
+      `- Date: ${new Date(booking.date).toLocaleDateString('en-CA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`,
+      `- Time: ${booking.time}`,
+      `- Package: ${booking.package}`,
+      `- Total: $${booking.totalPrice} (HST included)`,
+      '',
+      'Payment: E-transfer to alongejoan@gmail.com',
+      `Reference: ${booking.clientName} - Session ${booking.date}`,
+      '',
+      'Thank you for choosing Peridot Images!',
+      '',
+      'Best regards,',
+      'Peridot Images Team'
+    ].join('\n');
+
+    const mailtoLink = `mailto:${booking.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.location.href = mailtoLink;
+
+    setTimeout(() => {
+      downloadInvoice(booking);
+      alert('💡 Instructions:\n1. Save the PDF invoice that just opened\n2. Attach it to the email that opened\n3. Send the email to your client');
+    }, 500);
+  }
+
+  // Resume booking banner
+  const ResumeBookingBanner = () => (
+    bookingProgress && currentStep === 'welcome' && (
+      <div className="resume-booking-banner">
+        <div className="resume-content">
+          <h4>📋 Resume Your Booking</h4>
+          <p>You have an incomplete booking from {new Date(bookingProgress.timestamp).toLocaleDateString()}</p>
+          <div className="resume-actions">
+            <button 
+              onClick={() => {
+                setCurrentStep(bookingProgress.step);
+                setSelectedCategory(bookingProgress.category);
+                setSelectedPackage(bookingProgress.package);
+                setSelectedAddons(bookingProgress.addons || []);
+                setSelectedDate(bookingProgress.date || '');
+                setSelectedTime(bookingProgress.time || '');
+                setClientInfo(bookingProgress.clientInfo || {});
+                setAppliedDiscount(bookingProgress.discount);
+              }}
+              className="resume-button"
+            >
+              Continue Booking
+            </button>
+            <button 
+              onClick={() => {
+                localStorage.removeItem('peridotBookingProgress');
+                setBookingProgress(null);
+              }}
+              className="clear-button"
+            >
+              Start Fresh
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  );
+
+  const checkWeatherForDate = async (date) => {
+    // You can integrate with a weather API like OpenWeatherMap
+    // For now, this is a placeholder
+    const isOutdoorSession = selectedPackage?.location?.includes('Outdoor');
+    
+    if (isOutdoorSession && date) {
+      // Simulate weather check
+      const weatherTypes = ['sunny', 'cloudy', 'rainy', 'snowy'];
+      const randomWeather = weatherTypes[Math.floor(Math.random() * weatherTypes.length)];
+      
+      setWeatherData({
+        date: date,
+        condition: randomWeather,
+        temperature: Math.floor(Math.random() * 30) + 5, // 5-35°C
+        recommendation: randomWeather === 'rainy' ? 'Consider rescheduling or indoor backup' : 'Perfect for outdoor photos!'
+      });
+    }
+  };
+
+  const WeatherAlert = () => (
+    weatherData && selectedPackage?.location?.includes('Outdoor') && (
+      <div className={`weather-alert ${weatherData.condition}`}>
+        <h4>🌤️ Weather Forecast for Your Session</h4>
+        <div className="weather-info">
+          <span>📅 {formatDateLong(weatherData.date)}</span>
+          <span>🌡️ {weatherData.temperature}°C</span>
+          <span>☁️ {weatherData.condition}</span>
+        </div>
+        <p className="weather-recommendation">{weatherData.recommendation}</p>
+      </div>
+    )
+  );
+
+  // SOCIAL PROOF COMPONENT
+  const testimonials = [
+    {
+      name: "Sarah M.",
+      rating: 5,
+      text: "Absolutely stunning photos! The team was professional and made us feel so comfortable.",
+      package: "Family Standard"
+    },
+    {
+      name: "Jennifer L.", 
+      rating: 5,
+      text: "Best investment for our maternity photos. The quality is incredible!",
+      package: "Maternity Premium"
+    },
+    {
+      name: "Mark T.",
+      rating: 5,
+      text: "Professional headshots that landed me my dream job. Highly recommend!",
+      package: "Professional Premium"
+    }
+  ];
+
+  const SocialProof = () => (
+    <div className="social-proof-section">
+      <h3>⭐ What Our Clients Say</h3>
+      <div className="testimonials-carousel">
+        {testimonials.map((testimonial, index) => (
+          <div key={index} className="testimonial-card">
+            <div className="stars">
+              {'⭐'.repeat(testimonial.rating)}
+            </div>
+            <p>"{testimonial.text}"</p>
+            <div className="testimonial-author">
+              <strong>{testimonial.name}</strong>
+              <span>{testimonial.package}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="social-stats">
+        <div className="stat">
+          <strong>500+</strong>
+          <span>Happy Clients</span>
+        </div>
+        <div className="stat">
+          <strong>4.9/5</strong>
+          <span>Average Rating</span>
+        </div>
+        <div className="stat">
+          <strong>100%</strong>
+          <span>Satisfaction Rate</span>
+        </div>
+      </div>
+    </div>
+  );
+
+  const VoiceControls = () => (
+    <div className="voice-controls">
+      <button
+        onClick={() => setVoiceEnabled(!voiceEnabled)}
+        className={`voice-toggle ${voiceEnabled ? 'active' : ''}`}
+        aria-label="Toggle voice assistance"
+      >
+        {voiceEnabled ? '🔊 Voice On' : '🔇 Voice Off'}
+      </button>
+    </div>
+  );
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  React.useEffect(() => {
+    initializeVisitorSession();
+    trackPageView('welcome');
+    getUserLocation();
+    detectUserDevice();
+  }, []);
+
+  // Auto-save analytics
+  React.useEffect(() => {
+    localStorage.setItem('peridotVisitorAnalytics', JSON.stringify(visitorAnalytics));
+  }, [visitorAnalytics]);
+
+  // Initialize visitor session
+  const initializeVisitorSession = () => {
+    const sessionId = localStorage.getItem('peridotSessionId');
+    const isNewSession = !sessionId || Date.now() - parseInt(sessionId) > 30 * 60 * 1000; // 30 min session timeout
+    
+    const session = {
+      id: Date.now().toString(),
+      startTime: new Date().toISOString(),
+      isNewVisitor: isNewSession,
+      userAgent: navigator.userAgent,
+      referrer: document.referrer || 'direct',
+      language: navigator.language,
+      screenSize: `${window.screen.width}x${window.screen.height}`,
+      pageViews: []
+    };
+    
+    setCurrentSession(session);
+    localStorage.setItem('peridotSessionId', session.id);
+    
+    // Update visitor counts
+    setVisitorAnalytics(prev => ({
+      ...prev,
+      totalVisitors: prev.totalVisitors + 1,
+      uniqueVisitors: isNewSession ? prev.uniqueVisitors + 1 : prev.uniqueVisitors,
+      pageViews: prev.pageViews + 1,
+      conversionFunnel: {
+        ...prev.conversionFunnel,
+        visitors: prev.conversionFunnel.visitors + 1
+      }
+    }));
+    
+    // Track daily stats
+    const today = new Date().toISOString().split('T')[0];
+    setVisitorAnalytics(prev => ({
+      ...prev,
+      dailyStats: {
+        ...prev.dailyStats,
+        [today]: {
+          visitors: (prev.dailyStats[today]?.visitors || 0) + 1,
+          pageViews: (prev.dailyStats[today]?.pageViews || 0) + 1
+        }
+      }
+    }));
+  };
+
+  // Get user location using IP geolocation
+  const getUserLocation = async () => {
+    try {
+      // Using a free IP geolocation service
+      const response = await fetch('https://ipapi.co/json/');
+      const locationData = await response.json();
+      
+      const location = {
+        country: locationData.country_name,
+        region: locationData.region,
+        city: locationData.city,
+        postalCode: locationData.postal,
+        latitude: locationData.latitude,
+        longitude: locationData.longitude,
+        timezone: locationData.timezone,
+        isp: locationData.org
+      };
+      
+      setUserLocation(location);
+      
+      // Update location analytics
+      const locationKey = `${location.city}, ${location.region}, ${location.country}`;
+      setVisitorAnalytics(prev => ({
+        ...prev,
+        locations: {
+          ...prev.locations,
+          [locationKey]: (prev.locations[locationKey] || 0) + 1
+        }
+      }));
+      
+    } catch (error) {
+      console.log('Could not get location data');
+      
+      // Fallback: try to get location from browser geolocation
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            setUserLocation({
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+              accuracy: position.coords.accuracy,
+              source: 'browser'
+            });
+          },
+          (error) => {
+            console.log('Geolocation denied or failed');
+          }
+        );
+      }
+    }
+  };
+
+  // Detect user device and browser
+  const detectUserDevice = () => {
+    const userAgent = navigator.userAgent;
+    
+    // Device detection
+    let device = 'Desktop';
+    if (/Mobile|Android|iPhone|iPad/.test(userAgent)) {
+      device = /iPad/.test(userAgent) ? 'Tablet' : 'Mobile';
+    }
+    
+    // Browser detection
+    let browser = 'Unknown';
+    if (userAgent.includes('Chrome')) browser = 'Chrome';
+    else if (userAgent.includes('Firefox')) browser = 'Firefox';
+    else if (userAgent.includes('Safari')) browser = 'Safari';
+    else if (userAgent.includes('Edge')) browser = 'Edge';
+    
+    // Update analytics
+    setVisitorAnalytics(prev => ({
+      ...prev,
+      devices: {
+        ...prev.devices,
+        [device]: (prev.devices[device] || 0) + 1
+      },
+      browsers: {
+        ...prev.browsers,
+        [browser]: (prev.browsers[browser] || 0) + 1
+      },
+      referrers: {
+        ...prev.referrers,
+        [document.referrer || 'Direct']: (prev.referrers[document.referrer || 'Direct'] || 0) + 1
+      }
+    }));
+  };
+
+  // Track page views and user journey
+  const trackPageView = (page) => {
+    if (!currentSession) return;
+    
+    const pageView = {
+      page,
+      timestamp: new Date().toISOString(),
+      url: window.location.href
+    };
+    
+    setCurrentSession(prev => ({
+      ...prev,
+      pageViews: [...prev.pageViews, pageView]
+    }));
+    
+    setVisitorAnalytics(prev => ({
+      ...prev,
+      pageViews: prev.pageViews + 1
+    }));
+  };
+
+  // Track conversion funnel
+  const trackFunnelStep = (step) => {
+    setVisitorAnalytics(prev => ({
+      ...prev,
+      conversionFunnel: {
+        ...prev.conversionFunnel,
+        [step]: prev.conversionFunnel[step] + 1
+      }
+    }));
+  };
+
+  // Get marketing insights
+  const getMarketingInsights = () => {
+    const totalVisitors = visitorAnalytics.totalVisitors;
+    const completedBookings = visitorAnalytics.conversionFunnel.bookingCompleted;
+    const conversionRate = totalVisitors > 0 ? ((completedBookings / totalVisitors) * 100).toFixed(2) : 0;
+    
+    // Top locations
+    const topLocations = Object.entries(visitorAnalytics.locations)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10);
+    
+    // Top referrers
+    const topReferrers = Object.entries(visitorAnalytics.referrers)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5);
+    
+    // Device breakdown
+    const deviceStats = visitorAnalytics.devices;
+    
+    // Last 7 days stats
+    const last7Days = Array.from({length: 7}, (_, i) => {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      const dateStr = date.toISOString().split('T')[0];
+      return {
+        date: dateStr,
+        visitors: visitorAnalytics.dailyStats[dateStr]?.visitors || 0,
+        pageViews: visitorAnalytics.dailyStats[dateStr]?.pageViews || 0
+      };
+    }).reverse();
+    
+    return {
+      totalVisitors,
+      conversionRate,
+      topLocations,
+      topReferrers,
+      deviceStats,
+      last7Days,
+      funnelData: visitorAnalytics.conversionFunnel
+    };
+  };
+
+  // Export analytics data
+  const exportAnalyticsData = () => {
+    const insights = getMarketingInsights();
+    const exportData = {
+      ...visitorAnalytics,
+      insights,
+      exportDate: new Date().toISOString(),
+      currentLocation: userLocation
+    };
+    
+    const dataStr = JSON.stringify(exportData, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `peridot-analytics-${new Date().toISOString().split('T')[0]}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // Real-time visitor display for admin
+  const LiveVisitorInfo = () => (
+    userLocation && (
+      <div className="live-visitor-info">
+        <h4>🌍 Current Visitor</h4>
+        <div className="visitor-details">
+          <p>📍 {userLocation.city}, {userLocation.region}, {userLocation.country}</p>
+          <p>🌐 {currentSession?.language}</p>
+          <p>📱 {Object.keys(visitorAnalytics.devices).find(device => 
+            visitorAnalytics.devices[device] === Math.max(...Object.values(visitorAnalytics.devices))
+          )}</p>
+          <p>⏰ {userLocation.timezone}</p>
+        </div>
+      </div>
+    )
+  );
+
   return (
     <div className="luxury-container">
       <div className="luxury-background">
@@ -1371,6 +2248,10 @@ Peridot Images Team
             {language === 'en' ? '🇫🇷 Français' : '🇬🇧 English'}
           </button>
         </div>
+
+        {/* Voice Controls */}
+        <VoiceControls />
+
         {/* Welcome Screen */}
         {currentStep === 'welcome' && currentView === 'client' && (
           <>
@@ -1383,6 +2264,9 @@ Peridot Images Team
                 Admin Access
               </button>
             </div>
+
+            {/* Resume Booking Banner */}
+            <ResumeBookingBanner />
 
             <header className="luxury-header">
               <div className="fade-in">
@@ -1436,6 +2320,10 @@ Peridot Images Team
                 </div>
               </div>
             </div>
+
+            {/* Social Proof */}
+            <SocialProof />
+
             <footer className="luxury-footer">
               <div className="footer-content">
                 <p>📧 imagesbyperidot@gmail.com | 📱 (647) 444-3767</p>
@@ -1490,15 +2378,15 @@ Peridot Images Team
 
             <div className="alternative-contact">
               <p className="alt-text">Can't find a suitable date in our calendar?</p>
-              <button
-                onClick={() => {
+            <button 
+              onClick={() => {
                   const mailtoLink = 'mailto:imagesbyperidot@gmail.com?subject=Alternative Date Request&body=Hi, I cannot find a suitable date in your calendar. Can you help me find an alternative time slot?';
                   window.location.href = mailtoLink;
                 }}
                 className="alt-button"
               >
                 Contact Us for Alternative Dates
-              </button>
+            </button>
             </div>
 
             <div className="back-to-welcome">
@@ -1701,26 +2589,31 @@ Peridot Images Team
             </header>
             
             <div className="beautiful-calendar">
-              {/* Month Navigation */}
+              {/* IMPROVED Month Navigation with Clear Date Display */}
               <div className="month-navigation">
                 <button
                   onClick={() => setCurrentMonth(Math.max(0, currentMonth - 1))}
                   disabled={currentMonth === 0}
                   className={`month-nav-btn ${currentMonth === 0 ? 'disabled' : ''}`}
                 >
-                  ← Previous Month
+                  ← Previous
                 </button>
                 
-                <h3 className="current-month-title">
-                  {monthlyCalendar[currentMonth]?.name}
-                </h3>
+                <div className="current-month-display">
+                  <h3 className="current-month-title">
+                    {monthlyCalendar[currentMonth]?.name}
+                  </h3>
+                  <p className="current-month-subtitle">
+                    {monthlyCalendar[currentMonth]?.dates.length || 0} available dates
+                  </p>
+                </div>
                 
                 <button
                   onClick={() => setCurrentMonth(Math.min(monthlyCalendar.length - 1, currentMonth + 1))}
                   disabled={currentMonth === monthlyCalendar.length - 1}
                   className={`month-nav-btn ${currentMonth === monthlyCalendar.length - 1 ? 'disabled' : ''}`}
                 >
-                  Next Month →
+                  Next →
                 </button>
               </div>
 
@@ -1736,7 +2629,10 @@ Peridot Images Team
                     {monthlyCalendar[currentMonth]?.dates.map((dateObj) => (
                       <button
                         key={dateObj.date}
-                        onClick={() => setSelectedDate(dateObj.date)}
+                        onClick={() => {
+                          setSelectedDate(dateObj.date);
+                          checkWeatherForDate(dateObj.date);
+                        }}
                         className={`beautiful-date-card ${selectedDate === dateObj.date ? 'selected' : ''}`}
                       >
                         <div className="date-number">{dateObj.day}</div>
@@ -1745,6 +2641,9 @@ Peridot Images Team
                     ))}
                   </div>
                 </div>
+
+                {/* Weather Alert */}
+                <WeatherAlert />
 
                 {/* Time Selection */}
                 <div className="times-section">
@@ -2192,8 +3091,8 @@ Peridot Images Team
               </div>
 
               <div className="confirmation-actions">
-                <button
-                  onClick={() => {
+            <button 
+              onClick={() => {
                     // Reset all form data for new booking
                     setCurrentStep('welcome');
                     setSelectedCategory('');
@@ -2219,10 +3118,10 @@ Peridot Images Team
                   className="confirmation-button secondary"
                 >
                   View Complete FAQ
-                </button>
-              </div>
-            </div>
+            </button>
           </div>
+        </div>
+      </div>
         )}
 
         {/* Terms and Conditions Popup */}
@@ -2486,6 +3385,24 @@ Peridot Images Team
                 >
                   💰 HST Calculator
                 </button>
+                <button
+                  onClick={() => setAdminCurrentTab('emails')}
+                  className={`admin-nav-item ${adminCurrentTab === 'emails' ? 'active' : ''}`}
+                >
+                  📧 Email Manager
+                </button>
+                <button
+                  onClick={() => setAdminCurrentTab('insights')}
+                  className={`admin-nav-item ${adminCurrentTab === 'insights' ? 'active' : ''}`}
+                >
+                  💡 Business Insights
+                </button>
+                <button
+                  onClick={() => setAdminCurrentTab('analytics-advanced')}
+                  className={`admin-nav-item ${adminCurrentTab === 'analytics-advanced' ? 'active' : ''}`}
+                >
+                  🌍 Visitor Analytics
+                </button>
               </nav>
             </header>
 
@@ -2570,6 +3487,35 @@ Peridot Images Team
                           ))}
                         </div>
                       )}
+                    </div>
+                  </div>
+
+                  {/* Quick Actions Section */}
+                  <div className="quick-actions-section">
+                    <h3>⚡ Quick Actions</h3>
+                    <div className="quick-actions-grid">
+                      {quickActions.map(action => (
+                        <button
+                          key={action.id}
+                          onClick={action.action}
+                          className="quick-action-button"
+                        >
+                          <span className="action-icon">{action.icon}</span>
+                          <span className="action-title">{action.title}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  {/* Business Insights Preview */}
+                  <div className="dashboard-insights">
+                    <h3>💡 Today's Insights</h3>
+                    <div className="insights-preview">
+                      {getBusinessInsights().slice(0, 3).map((insight, index) => (
+                        <div key={index} className={`mini-insight ${insight.type}`}>
+                          {insight.icon} {insight.title}: {insight.message}
+                        </div>
+                      ))}
                     </div>
                   </div>
                 </div>
@@ -2721,25 +3667,25 @@ Peridot Images Team
                                 <button
                                   onClick={() => downloadInvoice(booking)}
                                   className="action-button invoice"
+                                  title="Generate PDF invoice for download or printing"
                                 >
-                                  📄 Download Invoice
+                                  📄 Generate PDF Invoice
                                 </button>
 
                                 <button
                                   onClick={() => emailInvoice(booking)}
                                   className="action-button email"
+                                  title="Send invoice via email to client"
                                 >
-                                  📧 Email Invoice
+                                  📧 Email Invoice to Client
                                 </button>
 
                                 <button
-                                  onClick={() => {
-                                    const mailtoLink = `mailto:${booking.email}?subject=Your Peridot Images Session - ${booking.date}&body=Hi ${booking.clientName},%0A%0AThank you for booking with Peridot Images!%0A%0ASession Details:%0ADate: ${booking.date}%0ATime: ${booking.time}%0APackage: ${booking.package}%0ALocation: Barrhaven Studio, Ottawa%0A%0AWe look forward to creating beautiful memories with you!%0A%0ABest regards,%0APeridot Images Team`;
-                                    window.location.href = mailtoLink;
-                                  }}
-                                  className="action-button email"
+                                  onClick={() => handleEmailWithPDFAttachment(booking)}
+                                  className="action-button primary"
+                                  title="Send email with PDF attachment instructions"
                                 >
-                                  📧 Email Client
+                                  📎 Email with PDF Attachment
                                 </button>
                               </div>
                             </div>
@@ -2822,8 +3768,8 @@ Peridot Images Team
                               {month.dates.map((dateObj) => {
                                 const dayBookings = getBookingsForDate(dateObj.date);
                                 const hasRealBooking = dayBookings.length > 0;
-                                
-                                return (
+
+  return (
                                   <div
                                     key={dateObj.date}
                                     className={`famwall-date-card ${
@@ -3443,8 +4389,8 @@ Peridot Images Team
                               </div>
                               <div>
                                 <div style={{fontWeight: 600}}>HST</div>
-                                <div style={{fontSize: '1.2rem', color: '#262626'}}>${currentHSTReport.totalHST}</div>
-                                <div style={{fontSize: '0.9rem', color: '#888'}}>vs prev: {prevHSTReport ? compare(currentHSTReport.totalHST, prevHSTReport.totalHST) : 'N/A'}</div>
+                                <div style={{fontSize: '1.2rem', color: '#262626'}}>${currentHSTReport.totalHSTCollected}</div>
+                                <div style={{fontSize: '0.9rem', color: '#888'}}>vs prev: {prevHSTReport ? compare(currentHSTReport.totalHSTCollected, prevHSTReport.totalHSTCollected) : 'N/A'}</div>
                               </div>
                               <div>
                                 <div style={{fontWeight: 600}}>Sessions</div>
@@ -3458,7 +4404,7 @@ Peridot Images Team
                         <div className="hst-summary-card" style={{background: '#fff', borderRadius: 16, boxShadow: '0 4px 16px rgba(245,158,11,0.08)', padding: 32, marginBottom: 24}}>
                           <h3 className="hst-card-title" style={{color: '#f59e0b', fontSize: '1.3rem', marginBottom: 8}}>📊 Current Month HST Summary</h3>
                           <div className="hst-period" style={{color: '#888', marginBottom: 16}}>{currentHSTReport.month}</div>
-                          <div className="hst-stats-grid" style={{display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 24, marginBottom: 16}}>
+                          <div className="hst-stats-grid" style={{display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 24, marginBottom: 16}}>
                             <div className="hst-stat" style={{textAlign: 'center'}}>
                               <div className="hst-stat-value" style={{fontSize: '1.5rem', fontWeight: 700, color: '#262626'}}>${currentHSTReport.totalRevenue}</div>
                               <div className="hst-stat-label" style={{color: '#888'}}>Total Revenue (HST Included)</div>
@@ -3468,7 +4414,7 @@ Peridot Images Team
                               <div className="hst-stat-label" style={{color: '#888'}}>Service Amount</div>
                             </div>
                             <div className="hst-stat hst-collected" style={{textAlign: 'center'}}>
-                              <div className="hst-stat-value" style={{fontSize: '1.5rem', fontWeight: 700, color: '#10b981'}}>${currentHSTReport.totalHST}</div>
+                              <div className="hst-stat-value" style={{fontSize: '1.5rem', fontWeight: 700, color: '#10b981'}}>${currentHSTReport.totalHSTCollected}</div>
                               <div className="hst-stat-label" style={{color: '#10b981'}}>HST Collected (13%)</div>
                             </div>
                             <div className="hst-stat" style={{textAlign: 'center'}}>
@@ -4042,6 +4988,296 @@ Peridot Images Team
                       </div>
                     </div>
                   )}
+                </div>
+              </div>
+            )}
+
+            {/* Email Management Tab */}
+            {adminCurrentTab === 'emails' && (
+              <div className="admin-content">
+                <div className="email-management-section">
+                  <h2 className="admin-section-title">Email Management</h2>
+                  
+                  {/* Email Settings */}
+                  <div className="email-settings-card">
+                    <h3>⚙️ Automation Settings</h3>
+                    <div className="email-settings-grid">
+                      <label>
+                        <input 
+                          type="checkbox" 
+                          checked={emailSettings.autoConfirmation}
+                          onChange={(e) => setEmailSettings({...emailSettings, autoConfirmation: e.target.checked})}
+                        />
+                        Auto-send confirmation emails
+                      </label>
+                      <label>
+                        <input 
+                          type="checkbox" 
+                          checked={emailSettings.autoReminders}
+                          onChange={(e) => setEmailSettings({...emailSettings, autoReminders: e.target.checked})}
+                        />
+                        Auto-send reminder emails
+                      </label>
+                      <label>
+                        <input 
+                          type="checkbox" 
+                          checked={emailSettings.autoFollowUp}
+                          onChange={(e) => setEmailSettings({...emailSettings, autoFollowUp: e.target.checked})}
+                        />
+                        Auto-send follow-up emails
+                      </label>
+                    </div>
+                  </div>
+                  
+                  {/* Quick Email Actions */}
+                  <div className="email-quick-actions">
+                    <button onClick={() => {
+                      const todayBookings = bookings.filter(b => 
+                        b.date === new Date().toISOString().split('T')[0] && b.status === 'confirmed'
+                      );
+                      todayBookings.forEach(booking => sendAutomatedEmail(booking, 'reminder'));
+                    }}>
+                      📧 Email Today's Clients
+                    </button>
+                    
+                    <button onClick={() => {
+                      const recentBookings = bookings.filter(b => 
+                        new Date(b.date) < new Date() && 
+                        new Date() - new Date(b.date) <= 3 * 24 * 60 * 60 * 1000 &&
+                        b.status === 'confirmed'
+                      );
+                      recentBookings.forEach(booking => sendAutomatedEmail(booking, 'followUp'));
+                    }}>
+                      📩 Send Follow-ups
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Advanced Analytics Tab */}
+            {adminCurrentTab === 'insights' && (
+              <div className="admin-content">
+                <div className="insights-section">
+                  <h2 className="admin-section-title">Business Insights</h2>
+                  
+                  {/* Business Intelligence Cards */}
+                  <div className="insights-grid">
+                    {getBusinessInsights().map((insight, index) => (
+                      <div key={index} className={`insight-card ${insight.type}`}>
+                        <div className="insight-icon">{insight.icon}</div>
+                        <div className="insight-content">
+                          <h4>{insight.title}</h4>
+                          <p>{insight.message}</p>
+                          <small>{insight.action}</small>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  {/* Revenue Chart */}
+                  <div className="revenue-chart-section">
+                    <h3>📈 6-Month Revenue Trend</h3>
+                    <div className="simple-chart">
+                      {getAdvancedAnalytics().last6Months.map((month, index) => (
+                        <div key={index} className="chart-bar">
+                          <div 
+                            className="bar" 
+                            style={{
+                              height: `${(month.revenue / 1000) * 100}px`,
+                              backgroundColor: '#f59e0b'
+                            }}
+                          />
+                          <span className="bar-label">{month.month}</span>
+                          <span className="bar-value">${month.revenue}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Visitor Analytics Tab */}
+            {adminCurrentTab === 'analytics-advanced' && (
+              <div className="admin-content">
+                <div className="visitor-analytics-section">
+                  <h2 className="admin-section-title">Visitor Analytics & Marketing Insights</h2>
+                  <p className="section-description">Track where your visitors come from and how they interact with your booking site</p>
+                  
+                  {/* Real-time visitor info */}
+                  <LiveVisitorInfo />
+                  
+                  {/* Marketing Overview */}
+                  <div className="marketing-overview">
+                    {(() => {
+                      const insights = getMarketingInsights();
+                      return (
+                        <>
+                          <div className="marketing-stats-grid">
+                            <div className="marketing-stat-card visitors">
+                              <div className="stat-icon">👥</div>
+                              <div className="stat-content">
+                                <div className="stat-value">{insights.totalVisitors}</div>
+                                <div className="stat-label">Total Visitors</div>
+                              </div>
+                            </div>
+                            <div className="marketing-stat-card conversion">
+                              <div className="stat-icon">🎯</div>
+                              <div className="stat-content">
+                                <div className="stat-value">{insights.conversionRate}%</div>
+                                <div className="stat-label">Conversion Rate</div>
+                              </div>
+                            </div>
+                            <div className="marketing-stat-card locations">
+                              <div className="stat-icon">🌍</div>
+                              <div className="stat-content">
+                                <div className="stat-value">{insights.topLocations.length}</div>
+                                <div className="stat-label">Cities Reached</div>
+                              </div>
+                            </div>
+                            <div className="marketing-stat-card mobile">
+                              <div className="stat-icon">📱</div>
+                              <div className="stat-content">
+                                <div className="stat-value">{Math.round((insights.deviceStats.Mobile || 0) / insights.totalVisitors * 100)}%</div>
+                                <div className="stat-label">Mobile Users</div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Conversion Funnel */}
+                          <div className="conversion-funnel-card">
+                            <h3>📈 Booking Conversion Funnel</h3>
+                            <div className="funnel-steps">
+                              <div className="funnel-step">
+                                <div className="step-label">Visitors</div>
+                                <div className="step-value">{insights.funnelData.visitors}</div>
+                                <div className="step-bar" style={{width: '100%'}}></div>
+                              </div>
+                              <div className="funnel-step">
+                                <div className="step-label">Viewed Categories</div>
+                                <div className="step-value">{insights.funnelData.categoryViews}</div>
+                                <div className="step-bar" style={{width: `${(insights.funnelData.categoryViews / insights.funnelData.visitors * 100)}%`}}></div>
+                              </div>
+                              <div className="funnel-step">
+                                <div className="step-label">Viewed Packages</div>
+                                <div className="step-value">{insights.funnelData.packageViews}</div>
+                                <div className="step-bar" style={{width: `${(insights.funnelData.packageViews / insights.funnelData.visitors * 100)}%`}}></div>
+                              </div>
+                              <div className="funnel-step">
+                                <div className="step-label">Started Booking</div>
+                                <div className="step-value">{insights.funnelData.bookingStarted}</div>
+                                <div className="step-bar" style={{width: `${(insights.funnelData.bookingStarted / insights.funnelData.visitors * 100)}%`}}></div>
+                              </div>
+                              <div className="funnel-step">
+                                <div className="step-label">Completed Booking</div>
+                                <div className="step-value">{insights.funnelData.bookingCompleted}</div>
+                                <div className="step-bar" style={{width: `${(insights.funnelData.bookingCompleted / insights.funnelData.visitors * 100)}%`}}></div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Top Locations */}
+                          <div className="top-locations-card">
+                            <h3>🌍 Top Visitor Locations</h3>
+                            <div className="locations-list">
+                              {insights.topLocations.map(([location, count], index) => (
+                                <div key={location} className="location-item">
+                                  <span className="location-rank">#{index + 1}</span>
+                                  <span className="location-name">{location}</span>
+                                  <span className="location-count">{count} visitors</span>
+                                  <div className="location-bar">
+                                    <div 
+                                      className="location-fill" 
+                                      style={{width: `${(count / insights.topLocations[0][1] * 100)}%`}}
+                                    ></div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Traffic Sources */}
+                          <div className="traffic-sources-card">
+                            <h3>🔗 Traffic Sources</h3>
+                            <div className="traffic-sources-list">
+                              {insights.topReferrers.map(([referrer, count], index) => {
+                                const displayReferrer = referrer === 'Direct' ? '🔗 Direct Traffic' : 
+                                                      referrer.includes('google') ? '🔍 Google Search' :
+                                                      referrer.includes('facebook') ? '📘 Facebook' :
+                                                      referrer.includes('instagram') ? '📸 Instagram' :
+                                                      `🌐 ${new URL(referrer).hostname}`;
+                                
+                                return (
+                                  <div key={referrer} className="traffic-source-item">
+                                    <span className="source-name">{displayReferrer}</span>
+                                    <span className="source-count">{count} visits</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          {/* 7-Day Trend */}
+                          <div className="trend-chart-card">
+                            <h3>📊 7-Day Visitor Trend</h3>
+                            <div className="trend-chart">
+                              {insights.last7Days.map((day, index) => (
+                                <div key={day.date} className="trend-day">
+                                  <div 
+                                    className="trend-bar" 
+                                    style={{
+                                      height: `${Math.max(20, (day.visitors / Math.max(...insights.last7Days.map(d => d.visitors)) * 100))}px`
+                                    }}
+                                  ></div>
+                                  <span className="trend-label">{new Date(day.date).toLocaleDateString('en-US', {weekday: 'short'})}</span>
+                                  <span className="trend-value">{day.visitors}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
+                  
+                  {/* Analytics Actions */}
+                  <div className="analytics-actions">
+                    <button
+                      onClick={exportAnalyticsData}
+                      className="action-button primary"
+                    >
+                      📊 Export Analytics Data
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (window.confirm('This will clear all visitor analytics data. Are you sure?')) {
+                          setVisitorAnalytics({
+                            totalVisitors: 0,
+                            uniqueVisitors: 0,
+                            pageViews: 0,
+                            locations: {},
+                            referrers: {},
+                            devices: {},
+                            browsers: {},
+                            dailyStats: {},
+                            conversionFunnel: {
+                              visitors: 0,
+                              categoryViews: 0,
+                              packageViews: 0,
+                              bookingStarted: 0,
+                              bookingCompleted: 0
+                            }
+                          });
+                          localStorage.removeItem('peridotVisitorAnalytics');
+                          alert('Analytics data cleared!');
+                        }
+                      }}
+                      className="action-button secondary"
+                    >
+                      🗑️ Clear Analytics Data
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
