@@ -6899,6 +6899,65 @@ button:focus {
   }
 }
 
+/* Category Delete Button Styles */
+.category-tab-container {
+  position: relative;
+  display: inline-block;
+}
+
+.category-delete-btn {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #ef4444;
+  color: white;
+  border: 2px solid white;
+  cursor: pointer;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  z-index: 10;
+  opacity: 0;
+  transform: scale(0.8);
+}
+
+.category-tab-container:hover .category-delete-btn {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.category-delete-btn:hover {
+  background: #dc2626;
+  transform: scale(1.1);
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+}
+
+/* Dark mode support for category delete buttons */
+body.dark-mode .category-delete-btn {
+  background: #ef4444;
+  border-color: #1f2937;
+}
+
+body.dark-mode .category-delete-btn:hover {
+  background: #dc2626;
+}
+
+/* Responsive design for category delete buttons */
+@media (max-width: 768px) {
+  .category-delete-btn {
+    width: 20px;
+    height: 20px;
+    font-size: 10px;
+    top: -6px;
+    right: -6px;
+  }
+}
+
 /* MOBILE-FIRST RESPONSIVE DESIGN */
 /* Base mobile styles (up to 768px) */
 @media (max-width: 768px) {
@@ -7521,6 +7580,65 @@ button:focus {
   .form-button,
   .nav-button {
     display: none !important;
+  }
+}
+
+/* Category Delete Button Styles */
+.category-tab-container {
+  position: relative;
+  display: inline-block;
+}
+
+.category-delete-btn {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #ef4444;
+  color: white;
+  border: 2px solid white;
+  cursor: pointer;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  z-index: 10;
+  opacity: 0;
+  transform: scale(0.8);
+}
+
+.category-tab-container:hover .category-delete-btn {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.category-delete-btn:hover {
+  background: #dc2626;
+  transform: scale(1.1);
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+}
+
+/* Dark mode support for category delete buttons */
+body.dark-mode .category-delete-btn {
+  background: #ef4444;
+  border-color: #1f2937;
+}
+
+body.dark-mode .category-delete-btn:hover {
+  background: #dc2626;
+}
+
+/* Responsive design for category delete buttons */
+@media (max-width: 768px) {
+  .category-delete-btn {
+    width: 20px;
+    height: 20px;
+    font-size: 10px;
+    top: -6px;
+    right: -6px;
   }
 }
 
@@ -9713,5 +9831,64 @@ body.dark-mode .insight-content small {
   .bar {
     width: 20px;
     height: 60px;
+  }
+}
+
+/* Category Delete Button Styles */
+.category-tab-container {
+  position: relative;
+  display: inline-block;
+}
+
+.category-delete-btn {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #ef4444;
+  color: white;
+  border: 2px solid white;
+  cursor: pointer;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  z-index: 10;
+  opacity: 0;
+  transform: scale(0.8);
+}
+
+.category-tab-container:hover .category-delete-btn {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.category-delete-btn:hover {
+  background: #dc2626;
+  transform: scale(1.1);
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+}
+
+/* Dark mode support for category delete buttons */
+body.dark-mode .category-delete-btn {
+  background: #ef4444;
+  border-color: #1f2937;
+}
+
+body.dark-mode .category-delete-btn:hover {
+  background: #dc2626;
+}
+
+/* Responsive design for category delete buttons */
+@media (max-width: 768px) {
+  .category-delete-btn {
+    width: 20px;
+    height: 20px;
+    font-size: 10px;
+    top: -6px;
+    right: -6px;
   }
 }
