@@ -202,6 +202,26 @@ Peridot Images Team`
   React.useEffect(() => {
     localStorage.setItem('peridotPackages', JSON.stringify(localPackages));
   }, [localPackages]);
+
+  // Secret Admin Access
+  React.useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const adminKey = urlParams.get('admin');
+    
+    if (adminKey === 'secret2025') {
+      setCurrentView('admin');
+    }
+    
+    const handleKeyPress = (e) => {
+      if (e.ctrlKey && e.shiftKey && e.key === 'A') {
+        setCurrentView('admin');
+      }
+    };
+    
+    document.addEventListener('keydown', handleKeyPress);
+    return () => document.removeEventListener('keydown', handleKeyPress);
+  }, []);
+
   React.useEffect(() => {
     localStorage.setItem('peridotCategoryNames', JSON.stringify(localCategoryNames));
   }, [localCategoryNames]);
@@ -2634,16 +2654,6 @@ Top Package: ${weekBookings.length > 0 ? weekBookings.reduce((acc, b) => {
         {/* Welcome Screen */}
         {currentStep === 'welcome' && currentView === 'client' && (
           <>
-            {/* Admin Access Button */}
-            <div className="admin-access">
-              <button
-                onClick={() => setCurrentView('admin')}
-                className="admin-access-button"
-              >
-                Admin Access
-              </button>
-            </div>
-
             {/* Resume Booking Banner */}
             <ResumeBookingBanner />
 
