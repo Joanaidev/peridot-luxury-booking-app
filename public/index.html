@@ -7,42 +7,159 @@
     <meta name="theme-color" content="#f59e0b" />
     <meta
       name="description"
-      content="Book your luxury photography session with Peridot Luxury Photography. Professional portraits, events, and special moments captured beautifully."
+      content="Book your luxury photography session with Peridot Images. Professional portraits, family sessions, and special moments captured beautifully in Ottawa."
     />
-    <meta name="keywords" content="luxury photography, portrait photography, event photography, professional photographer, booking system" />
-    <meta name="author" content="Peridot Luxury Photography" />
+    <meta name="keywords" content="photography booking Ottawa, portrait photography, family photography, professional photographer Ottawa, Peridot Images, photography sessions" />
+    <meta name="author" content="Peridot Images" />
     <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
-    <!-- Better mobile performance -->
+    
+    <!-- Preconnect to Google Fonts for better performance -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <!--
-      manifest.json provides metadata used when your web app is installed on a
-      user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
-    -->
+    
+    <!-- Load Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@400;600;700&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+    
+    <!-- Web App Manifest -->
     <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
-    <!--
-      Notice the use of %PUBLIC_URL% in the tags above.
-      It will be replaced with the URL of the `public` folder during the build.
-      Only files inside the `public` folder can be referenced from the HTML.
-
-      Unlike "/favicon.ico" or "favicon.ico", "%PUBLIC_URL%/favicon.ico" will
-      work correctly both with client-side routing and a non-root public URL.
-      Learn how to configure a non-root public URL by running `npm run build`.
-    -->
-    <title>Peridot Luxury Photography - Book Your Session</title>
+    
+    <!-- SEO and Social Media Meta Tags -->
+    <meta property="og:title" content="Peridot Images - Professional Photography Booking" />
+    <meta property="og:description" content="Book your luxury photography session with Peridot Images. Professional portraits, family sessions, and special moments captured beautifully in Ottawa." />
+    <meta property="og:image" content="%PUBLIC_URL%/og-image.jpg" />
+    <meta property="og:url" content="https://peridotimages.com" />
+    <meta property="og:type" content="website" />
+    
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Peridot Images - Professional Photography Booking" />
+    <meta name="twitter:description" content="Book your luxury photography session with Peridot Images. Professional portraits, family sessions, and special moments captured beautifully in Ottawa." />
+    <meta name="twitter:image" content="%PUBLIC_URL%/og-image.jpg" />
+    
+    <!-- Additional SEO -->
+    <meta name="robots" content="index, follow" />
+    <meta name="googlebot" content="index, follow" />
+    <link rel="canonical" href="https://peridotimages.com" />
+    
+    <!-- Performance and Security -->
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+    <meta http-equiv="X-Frame-Options" content="DENY" />
+    <meta http-equiv="X-XSS-Protection" content="1; mode=block" />
+    
+    <!-- PWA Support -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Peridot Images" />
+    
+    <!-- Microsoft Tiles -->
+    <meta name="msapplication-TileColor" content="#f59e0b" />
+    <meta name="msapplication-config" content="%PUBLIC_URL%/browserconfig.xml" />
+    
+    <title>Peridot Images - Professional Photography Booking | Ottawa</title>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <noscript>
+      <div style="
+        display: flex; 
+        flex-direction: column; 
+        align-items: center; 
+        justify-content: center; 
+        min-height: 100vh; 
+        padding: 20px; 
+        font-family: Arial, sans-serif; 
+        background: linear-gradient(135deg, #fef7ed 0%, #fff8f0 100%);
+        text-align: center;
+      ">
+        <h1 style="color: #f59e0b; margin-bottom: 16px;">Peridot Images</h1>
+        <p style="color: #525252; margin-bottom: 20px; max-width: 500px; line-height: 1.6;">
+          You need to enable JavaScript to use our booking system. Please enable JavaScript in your browser settings and refresh the page.
+        </p>
+        <p style="color: #737373; font-size: 0.9rem;">
+          For assistance, contact us at 
+          <a href="mailto:imagesbyperidot@gmail.com" style="color: #f59e0b;">imagesbyperidot@gmail.com</a>
+          or call <a href="tel:+16474443767" style="color: #f59e0b;">(647) 444-3767</a>
+        </p>
+      </div>
+    </noscript>
+    
+    <!-- Loading Screen -->
+    <div id="loading-screen" style="
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #fef7ed 0%, #fff8f0 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      transition: opacity 0.5s ease;
+    ">
+      <div style="
+        width: 80px;
+        height: 80px;
+        background: linear-gradient(135deg, #fbbf24, #f59e0b);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 20px;
+        animation: pulse 2s infinite;
+      ">
+        <span style="
+          font-family: 'Playfair Display', serif;
+          font-size: 2rem;
+          font-weight: 700;
+          color: white;
+        ">P</span>
+      </div>
+      <h2 style="
+        font-family: 'Playfair Display', serif;
+        color: #f59e0b;
+        margin: 0 0 8px 0;
+        font-size: 1.8rem;
+        font-weight: 600;
+      ">Peridot Images</h2>
+      <p style="
+        color: #525252;
+        margin: 0;
+        font-size: 1rem;
+      ">Loading your booking experience...</p>
+    </div>
+
     <div id="root"></div>
-    <!--
-      This HTML file is a template.
-      If you open it directly in the browser, you will see an empty page.
+    
+    <!-- Hide loading screen when React loads -->
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        // Hide loading screen after a short delay to ensure React has mounted
+        setTimeout(function() {
+          const loadingScreen = document.getElementById('loading-screen');
+          if (loadingScreen) {
+            loadingScreen.style.opacity = '0';
+            setTimeout(function() {
+              loadingScreen.style.display = 'none';
+            }, 500);
+          }
+        }, 1000);
+      });
+    </script>
 
-      You can add webfonts, meta tags, or analytics to this file.
-      The build step will place the bundled scripts into the <body> tag.
-
-      To begin the development, run `npm start` or `yarn start`.
-      To create a production bundle, use `npm run build` or `yarn build`.
-    -->
+    <!-- CSS for loading animation -->
+    <style>
+      @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+      }
+      
+      /* Prevent flash of unstyled content */
+      body {
+        margin: 0;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+    </style>
   </body>
 </html>
