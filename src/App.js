@@ -237,6 +237,28 @@ Peridot Images Team`
     setShowCategoryForm(false);
   }
 
+  // Handler: Delete Category
+  function deleteCategory(categoryKey) {
+    if (!window.confirm(`Are you sure you want to delete the category "${localCategoryNames[categoryKey]}"? This will also delete all packages in this category.`)) return;
+    
+    setLocalPackages(prev => {
+      const newPackages = { ...prev };
+      delete newPackages[categoryKey];
+      return newPackages;
+    });
+    
+    setLocalCategoryNames(prev => {
+      const newCategoryNames = { ...prev };
+      delete newCategoryNames[categoryKey];
+      return newCategoryNames;
+    });
+    
+    // If the deleted category was selected, clear the selection
+    if (selectedCategory === categoryKey) {
+      setSelectedCategory('');
+    }
+  }
+
   // Handler: Add Package
   function addPackage() {
     if (!selectedCategory) return alert('Select a category first.');
@@ -5221,14 +5243,22 @@ Top Package: ${weekBookings.length > 0 ? weekBookings.reduce((acc, b) => {
                   {/* Category Tabs */}
                   <div className="package-categories-tabs">
                     {Object.keys(localPackages).map((cat) => (
-                      <button
-                        key={cat}
-                        className={`category-tab${selectedCategory === cat ? ' active' : ''}`}
-                        onClick={() => setSelectedCategory(cat)}
-                      >
-                        {localCategoryNames[cat] || cat}
-                        <span className="category-count">{localPackages[cat].length}</span>
-                      </button>
+                      <div key={cat} className="category-tab-container">
+                        <button
+                          className={`category-tab${selectedCategory === cat ? ' active' : ''}`}
+                          onClick={() => setSelectedCategory(cat)}
+                        >
+                          {localCategoryNames[cat] || cat}
+                          <span className="category-count">{localPackages[cat].length}</span>
+                        </button>
+                        <button
+                          className="category-delete-btn"
+                          onClick={() => deleteCategory(cat)}
+                          title={`Delete ${localCategoryNames[cat] || cat} category`}
+                        >
+                          🗑️
+                        </button>
+                      </div>
                     ))}
                     <button
                       className="category-tab"
