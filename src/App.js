@@ -2732,8 +2732,8 @@ Top Package: ${weekBookings.length > 0 ? weekBookings.reduce((acc, b) => {
             </header>
 
             <div className="categories-grid">
-              {Object.entries(categoryNames).map(([key, name]) => {
-                const categoryPackages = packages[key];
+              {Object.entries(localCategoryNames).map(([key, name]) => {
+                const categoryPackages = localPackages[key];
                 const minPrice = categoryPackages && Array.isArray(categoryPackages) ? 
                   Math.min(...categoryPackages.map(p => typeof p.price === 'number' ? p.price : Infinity)) : 
                   'Contact';
@@ -2799,11 +2799,11 @@ Top Package: ${weekBookings.length > 0 ? weekBookings.reduce((acc, b) => {
               >
                 ← Back to Categories
               </button>
-              <h2 className="step-title">{categoryNames[selectedCategory]}</h2>
+              <h2 className="step-title">{localCategoryNames[selectedCategory]}</h2>
             </header>
             
             <div className="packages-grid">
-              {packages[selectedCategory] && packages[selectedCategory].map((pkg) => (
+              {localPackages[selectedCategory] && localPackages[selectedCategory].map((pkg) => (
                 <div key={pkg.id} className="package-card">
                   <div className="package-header">
                     <h3 className="package-name">{pkg.name}</h3>
