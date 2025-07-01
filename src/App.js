@@ -852,6 +852,15 @@ The Peridot Images Team
           const dateString = date.toISOString().split('T')[0];
           // Only include future dates
           if (date >= today) {
+            // Check if date is blocked
+            if (blockedDates && blockedDates.includes(dateString)) continue;
+            // Check if at least one available time slot
+            const availableTimes = getAvailableTimesForDate(dateString);
+            const blockedSlots = blockedTimeSlots[dateString] || [];
+            const realBookings = bookings.filter(b => b.date === dateString && b.status !== 'cancelled').map(b => b.time);
+            // A time is available if it's not in blockedSlots and not already booked
+            const hasAvailable = availableTimes.some(time => !blockedSlots.includes(time) && !realBookings.includes(time));
+            if (!hasAvailable) continue;
             weekendDates.push({
               date: dateString,
               day: day,
