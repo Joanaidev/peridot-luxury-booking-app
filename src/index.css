@@ -10038,10 +10038,6 @@ body.dark-mode .category-delete-btn:hover {
   background: rgba(245, 158, 11, 0.08);
 }
 
-.notification-item.unread:hover {
-  background: rgba(245, 158, 11, 0.12);
-}
-
 .notification-content {
   display: flex;
   flex-direction: column;
