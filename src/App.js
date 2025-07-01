@@ -89,7 +89,8 @@ Package: {packageName}
 Location: Barrhaven Studio, Ottawa
 
 📧 We'll send you a preparation guide 48 hours before your session.
-📸 Your edited photos will be ready within 7-10 business days.
+📋 <a href="https://peridotimages.mypixieset.com/get-ready/" target="_blank" rel="noopener noreferrer" style="color: #f59e0b; text-decoration: underline;">View our Get Ready Guide here</a>
+📸 Your edited photos will be ready within 7-10 business days after you select your favorites.
 
 Thank you for choosing Peridot Images!
 
@@ -2086,7 +2087,7 @@ Top Package: ${weekBookings.length > 0 ? weekBookings.reduce((acc, b) => {
       '1. Complete payment via e-transfer using the details above',
       '2. I\'ll reach out 1 week before your session to plan your shoot',
       '3. You\'ll receive a session preparation guide 48 hours before your appointment',
-      '4. Your beautifully edited photos will be delivered within 7-10 business days after your session',
+      '4. Your beautifully edited photos will be delivered within 7-10 business days after you select your favorites',
       '',
       'Thank you for choosing Peridot Images!',
       '',
@@ -3647,7 +3648,7 @@ Top Package: ${weekBookings.length > 0 ? weekBookings.reduce((acc, b) => {
                       <div className="step-icon">✨</div>
                       <div className="step-text">
                         <strong>Photo Delivery</strong>
-                        <span>Beautifully edited images delivered within 7-10 business days</span>
+                        <span>Beautifully edited images delivered within 7-10 business days after you select your favorites</span>
                       </div>
                     </div>
                   </div>
@@ -3739,7 +3740,7 @@ Top Package: ${weekBookings.length > 0 ? weekBookings.reduce((acc, b) => {
                 
                 <div className="terms-section">
                   <h4>Image Delivery</h4>
-                  <p>Peridot Images will provide the link for selection of images within 48hrs from the session. Final edited images will be delivered within 7-10 working days.</p>
+                  <p>Peridot Images will provide the link for selection of images within 48hrs from the session. Final edited images will be delivered within 7-10 working days after you select your favorites.</p>
                 </div>
                 
                 <div className="terms-section">
