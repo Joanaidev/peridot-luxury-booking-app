@@ -242,14 +242,8 @@ The Peridot Images Team
   const [packageFormData, setPackageFormData] = useState({
     name: '', price: '', duration: '', people: '', outfits: '', backdrops: '', images: '', location: '', special: '', note: '', isActive: true
   });
-
-  // Sync localPackages and localCategoryNames to localStorage
-  React.useEffect(() => {
-    localStorage.setItem('peridotPackages', JSON.stringify(localPackages));
-  }, [localPackages]);
-
-  // Secret Admin Access
-  React.useEffect(() => {
+// Secret Admin Access
+React.useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const adminKey = urlParams.get('admin');
     
@@ -266,6 +260,10 @@ The Peridot Images Team
     document.addEventListener('keydown', handleKeyPress);
     return () => document.removeEventListener('keydown', handleKeyPress);
   }, []);
+  // Sync localPackages and localCategoryNames to localStorage
+  React.useEffect(() => {
+    localStorage.setItem('peridotPackages', JSON.stringify(localPackages));
+  }, [localPackages]);
 
   React.useEffect(() => {
     localStorage.setItem('peridotCategoryNames', JSON.stringify(localCategoryNames));
