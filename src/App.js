@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './index.css';
 import { packages, categoryNames, addons } from './packages.js';
-import PerryAssistant from './PerryAssistant.js'; 
-
+import PerryAssistant from './components/PerryAssistant';
 function App() {
   const [currentStep, setCurrentStep] = useState('welcome');
   const [selectedCategory, setSelectedCategory] = useState('');
@@ -827,6 +826,19 @@ The Peridot Images Team
     window.URL.revokeObjectURL(url);
   };
 
+  // Get available times based on selected date
+  const getAvailableTimesForDate = (date) => {
+    if (!date) return [];
+    const dayOfWeek = new Date(date).getDay();
+    
+    if (dayOfWeek === 6) { // Saturday
+      return ['11:00 AM', '12:00 PM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM'];
+    } else if (dayOfWeek === 0) { // Sunday
+      return ['12:00 PM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM'];
+    }
+    return [];
+  };
+
   // Generate weekend dates for full year (June 2025 - May 2026)
   const generateMonthlyCalendar = () => {
     const today = new Date();
@@ -880,19 +892,6 @@ The Peridot Images Team
   };
 
   const monthlyCalendar = generateMonthlyCalendar();
-
-  // Get available times based on selected date
-  const getAvailableTimesForDate = (date) => {
-    if (!date) return [];
-    const dayOfWeek = new Date(date).getDay();
-    
-    if (dayOfWeek === 6) { // Saturday
-      return ['11:00 AM', '12:00 PM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM'];
-    } else if (dayOfWeek === 0) { // Sunday
-      return ['12:00 PM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM'];
-    }
-    return [];
-  };
 
   const selectCategory = (category) => {
     if (category === 'otherservices') {
