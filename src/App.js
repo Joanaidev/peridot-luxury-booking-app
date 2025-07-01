@@ -128,6 +128,50 @@ Questions? Just reply to this email.
 
 With gratitude,
 Peridot Images Team`
+      },
+      birthday: {
+        subject: '🎂 Perry Birthday to You!',
+        body: `Dear {clientName},
+
+🎉 Perry Birthday to you! 🎉
+
+On your special day, we wanted to send you a little something extra special...
+
+🎁 BIRTHDAY OFFER:
+Reply to this email and we'll send you a unique discount code for your birthday!
+
+📸 Perfect timing to capture your beautiful moments!
+
+Ready to celebrate? Just reply to this email or call us at (647) 444-3767 to book your birthday session.
+
+Wishing you a day filled with joy, laughter, and beautiful memories!
+
+With warmest wishes,
+The Peridot Images Team
+📧 imagesbyperidot@gmail.com
+📱 (647) 444-3767`
+      },
+      cancellation: {
+        subject: 'Booking Expired - But We Can Still Help!',
+        body: `Hi {clientName},
+
+We noticed your recent booking for {packageName} on {sessionDate} at {sessionTime} has expired.
+
+But don't worry! We'd love to help you reschedule and get those beautiful photos you deserve.
+
+🎯 QUICK REBOOKING:
+- Your selected package is still available
+- We can find another perfect time slot
+- No additional fees for rescheduling
+
+📞 Just call us at (647) 444-3767 or reply to this email to get your session back on the calendar!
+
+Looking forward to capturing your beautiful moments!
+
+Best regards,
+The Peridot Images Team
+📧 imagesbyperidot@gmail.com
+📱 (647) 444-3767`
       }
     };
   });
@@ -1015,6 +1059,29 @@ The Peridot Images Team
     if (emailSettings.autoConfirmation) {
       sendAutomatedEmail(newBooking, 'confirmation');
     }
+
+    // Add admin notification for new booking
+    const notification = {
+      id: Date.now(),
+      type: 'booking',
+      message: `New booking from ${clientInfo.name} - ${selectedPackage.name} on ${formatDate(selectedDate)} at ${selectedTime}`,
+      data: newBooking,
+      timestamp: new Date().toISOString(),
+      read: false
+    };
+    
+    const existingNotifications = JSON.parse(localStorage.getItem('peridotAdminNotifications') || '[]');
+    existingNotifications.unshift(notification);
+    localStorage.setItem('peridotAdminNotifications', JSON.stringify(existingNotifications));
+    
+    // Show browser notification if supported
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification('🎉 New Booking - Peridot Images', {
+        body: `${clientInfo.name} just booked ${selectedPackage.name} for ${formatDate(selectedDate)} at ${selectedTime}`,
+        icon: '/logo192.png',
+        tag: 'new-booking'
+      });
+    }
     
     setCurrentStep('confirmation');
   };
@@ -1504,6 +1571,66 @@ The Peridot Images Team
     const mailtoLink = `mailto:${booking.email}?subject=${encodeURIComponent(personalizedSubject)}&body=${encodeURIComponent(personalizedBody)}`;
     window.open(mailtoLink);
   };
+
+  // Send birthday emails to clients
+  const sendBirthdayEmails = () => {
+    const today = new Date();
+    const todayString = `${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    
+    bookings.forEach(booking => {
+      if (booking.birthday === todayString && booking.email) {
+        const template = emailTemplates.birthday;
+        const personalizedSubject = template.subject;
+        const personalizedBody = template.body.replace(/{clientName}/g, booking.clientName);
+        
+        const mailtoLink = `mailto:${booking.email}?subject=${encodeURIComponent(personalizedSubject)}&body=${encodeURIComponent(personalizedBody)}`;
+        window.open(mailtoLink);
+      }
+    });
+  };
+
+  // Check and handle expired bookings
+  const checkExpiredBookings = () => {
+    const now = new Date();
+    const expiredBookings = bookings.filter(booking => 
+      booking.expiresAt && new Date(booking.expiresAt) < now && booking.status === 'held'
+    );
+    
+    expiredBookings.forEach(booking => {
+      // Update booking status to expired
+      updateBookingStatus(booking.id, 'expired', 'pending');
+      
+      // Send cancellation email
+      const template = emailTemplates.cancellation;
+      const personalizedSubject = template.subject;
+      const personalizedBody = template.body
+        .replace(/{clientName}/g, booking.clientName)
+        .replace(/{packageName}/g, booking.package)
+        .replace(/{sessionDate}/g, new Date(booking.date).toLocaleDateString('en-CA', { 
+          weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
+        }))
+        .replace(/{sessionTime}/g, booking.time);
+      
+      const mailtoLink = `mailto:${booking.email}?subject=${encodeURIComponent(personalizedSubject)}&body=${encodeURIComponent(personalizedBody)}`;
+      window.open(mailtoLink);
+    });
+  };
+
+  // Check for birthdays and expired bookings daily
+  React.useEffect(() => {
+    const checkDaily = () => {
+      sendBirthdayEmails();
+      checkExpiredBookings();
+    };
+    
+    // Check once when component mounts
+    checkDaily();
+    
+    // Set up daily check (every 24 hours)
+    const interval = setInterval(checkDaily, 24 * 60 * 60 * 1000);
+    
+    return () => clearInterval(interval);
+  }, [bookings]);
 
   // Email recovery system for abandoned bookings
   // eslint-disable-next-line no-unused-vars
@@ -2641,6 +2768,56 @@ Top Package: ${weekBookings.length > 0 ? weekBookings.reduce((acc, b) => {
     return { totalReviews, averageRating };
   };
 
+  // Add notification state for admin
+  const [adminNotifications, setAdminNotifications] = useState(() => {
+    const saved = localStorage.getItem('peridotAdminNotifications');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  // Add notification display state
+  const [showNotifications, setShowNotifications] = useState(false);
+
+  // Save notifications to localStorage
+  React.useEffect(() => {
+    localStorage.setItem('peridotAdminNotifications', JSON.stringify(adminNotifications));
+  }, [adminNotifications]);
+
+  // Add notification function
+  const addAdminNotification = (type, message, data = {}) => {
+    const notification = {
+      id: Date.now(),
+      type, // 'booking', 'payment', 'expired', etc.
+      message,
+      data,
+      timestamp: new Date().toISOString(),
+      read: false
+    };
+    
+    setAdminNotifications(prev => [notification, ...prev]);
+    
+    // Show browser notification if supported
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification('Peridot Images - New Booking', {
+        body: message,
+        icon: '/logo192.png'
+      });
+    }
+  };
+
+  // Mark notification as read
+  const markNotificationRead = (notificationId) => {
+    setAdminNotifications(prev => 
+      prev.map(notif => 
+        notif.id === notificationId ? { ...notif, read: true } : notif
+      )
+    );
+  };
+
+  // Clear all notifications
+  const clearAllNotifications = () => {
+    setAdminNotifications([]);
+  };
+
   return (
     <div className="luxury-container">
       <div className="luxury-background">
@@ -3390,7 +3567,7 @@ Top Package: ${weekBookings.length > 0 ? weekBookings.reduce((acc, b) => {
                     <li>Your session is tentatively held for 4 hours pending payment confirmation</li>
                     <li>Final confirmation will be sent via {clientInfo.preferredCommunication}</li>
                     <li>Session details and preparation guide will follow</li>
-                    <li>Photos delivered within 7-10 business days via secure digital gallery</li>
+                    <li>Photos delivered within 7-10 business days after you have selected and sent them back for editing via secure digital gallery</li>
                     <li>Bookings not confirmed within 4 hours will be automatically cancelled</li>
                   </ul>
                 </div>
@@ -3743,6 +3920,61 @@ Top Package: ${weekBookings.length > 0 ? weekBookings.reduce((acc, b) => {
                 </div>
                 
                 <div className="admin-header-right">
+                  {/* Notification Bell */}
+                  <div className="admin-notification-container">
+                    <button
+                      onClick={() => setShowNotifications(!showNotifications)}
+                      className="admin-notification-bell"
+                      title="Notifications"
+                    >
+                      🔔
+                      {adminNotifications.filter(n => !n.read).length > 0 && (
+                        <span className="notification-badge">
+                          {adminNotifications.filter(n => !n.read).length}
+                        </span>
+                      )}
+                    </button>
+                    
+                    {/* Notification Dropdown */}
+                    {showNotifications && (
+                      <div className="notification-dropdown">
+                        <div className="notification-header">
+                          <h4>Notifications</h4>
+                          <button
+                            onClick={clearAllNotifications}
+                            className="clear-notifications-btn"
+                          >
+                            Clear All
+                          </button>
+                        </div>
+                        
+                        <div className="notifications-list">
+                          {adminNotifications.length === 0 ? (
+                            <div className="no-notifications">
+                              <p>No notifications</p>
+                            </div>
+                          ) : (
+                            adminNotifications.slice(0, 10).map(notification => (
+                              <div
+                                key={notification.id}
+                                className={`notification-item ${!notification.read ? 'unread' : ''}`}
+                                onClick={() => markNotificationRead(notification.id)}
+                              >
+                                <div className="notification-content">
+                                  <div className="notification-message">{notification.message}</div>
+                                  <div className="notification-time">
+                                    {new Date(notification.timestamp).toLocaleString()}
+                                  </div>
+                                </div>
+                                {!notification.read && <div className="unread-indicator"></div>}
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  
                   <button
                     onClick={handleAdminLogout}
                     className="admin-logout-button"
@@ -5474,6 +5706,20 @@ Top Package: ${weekBookings.length > 0 ? weekBookings.reduce((acc, b) => {
                       recentBookings.forEach(booking => sendAutomatedEmail(booking, 'followUp'));
                     }}>
                       📩 Send Follow-ups
+                    </button>
+
+                    <button onClick={() => {
+                      sendBirthdayEmails();
+                      alert('Birthday emails sent to clients with birthdays today!');
+                    }}>
+                      🎂 Send Birthday Emails
+                    </button>
+
+                    <button onClick={() => {
+                      checkExpiredBookings();
+                      alert('Expired bookings checked and cancellation emails sent!');
+                    }}>
+                      ⏰ Check Expired Bookings
                     </button>
                   </div>
                 </div>
