@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './index.css';
 import { packages, categoryNames, addons } from './packages.js';
-import PerryAssistant from './components/PerryAssistant';
+import PerryAssistant from './components/PerryAssistant.js';
 function App() {
   const [currentStep, setCurrentStep] = useState('welcome');
   const [selectedCategory, setSelectedCategory] = useState('');
